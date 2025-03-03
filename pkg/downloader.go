@@ -37,12 +37,16 @@ func joinUrl(home, link string) (string, error) {
 	return u.JoinPath(link).String(), nil
 }
 
-func getUrl(ctx context.Context, url string) (io.ReadCloser, error) {
+type HttpDoClient interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+func getUrl(ctx context.Context, client HttpDoClient, url string) (io.ReadCloser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -54,15 +58,15 @@ func getUrl(ctx context.Context, url string) (io.ReadCloser, error) {
 }
 
 var (
-	PlatformRegex  = regexp.MustCompile(`(?m)Platforms:\s*(.+?)\s*$`)
-	YearRegex      = regexp.MustCompile(`Year:\s*(\d+)`)
-	DeveloperRegex = regexp.MustCompile(`(?m)Developed by:\s*(.+?)\s*$`)
-	PublisherRegex = regexp.MustCompile(`(?m)Published by:\s*(.+?)\s*$`)
-	AlbumTypeRegex = regexp.MustCompile(`(?m)Album type:\s*(.+?)\s*$`)
+	platformRegex  = regexp.MustCompile(`(?m)Platforms:\s*(.+?)\s*$`)
+	yearRegex      = regexp.MustCompile(`Year:\s*(\d+)`)
+	developerRegex = regexp.MustCompile(`(?m)Developed by:\s*(.+?)\s*$`)
+	publisherRegex = regexp.MustCompile(`(?m)Published by:\s*(.+?)\s*$`)
+	albumTypeRegex = regexp.MustCompile(`(?m)Album type:\s*(.+?)\s*$`)
 )
 
-func FetchAlbumInfo(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
-	body, err := getUrl(ctx, albumUrl)
+func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl string) (*AlbumInfo, error) {
+	body, err := getUrl(ctx, httpClient, albumUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch album page: %w", err)
 	}
@@ -84,19 +88,19 @@ func FetchAlbumInfo(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
 	// Parse album info from description below title
 	doc.Find("#pageContent p:contains('Platforms:')").First().Each(func(i int, s *goquery.Selection) {
 		text := s.Text()
-		if match := PlatformRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := platformRegex.FindStringSubmatch(text); len(match) > 1 {
 			result.Platforms = strings.ReplaceAll(match[1], ", ", "; ")
 		}
-		if match := YearRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := yearRegex.FindStringSubmatch(text); len(match) > 1 {
 			result.Year = match[1]
 		}
-		if match := DeveloperRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := developerRegex.FindStringSubmatch(text); len(match) > 1 {
 			result.Developer = strings.ReplaceAll(match[1], ", ", "; ")
 		}
-		if match := PublisherRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := publisherRegex.FindStringSubmatch(text); len(match) > 1 {
 			result.Publisher = strings.ReplaceAll(match[1], ", ", "; ")
 		}
-		if match := AlbumTypeRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := albumTypeRegex.FindStringSubmatch(text); len(match) > 1 {
 			result.AlbumType = strings.ReplaceAll(match[1], ", ", "; ")
 			if result.AlbumType == "Gamerip" {
 				result.AlbumType = "Soundtrack"
@@ -125,8 +129,8 @@ func FetchAlbumInfo(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
 	return &result, nil
 }
 
-func FetchTrackDownloadUrl(ctx context.Context, pageUrl string) (string, error) {
-	body, err := getUrl(ctx, pageUrl)
+func FetchTrackDownloadUrl(ctx context.Context, httpClient HttpDoClient, pageUrl string) (string, error) {
+	body, err := getUrl(ctx, httpClient, pageUrl)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch track page: %w", err)
 	}
@@ -160,13 +164,19 @@ func FetchTrackDownloadUrl(ctx context.Context, pageUrl string) (string, error) 
 	return result, nil
 }
 
-func FetchAlbum(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
-	slog.Info("fetching from " + albumUrl)
-	albumInfo, err := FetchAlbumInfo(ctx, albumUrl)
+type IOer interface {
+	MkdirAll(string, os.FileMode) error
+	Create(string) (io.WriteCloser, error)
+	Stat(string) (os.FileInfo, error)
+}
+
+func FetchAlbum(ctx context.Context, httpClient HttpDoClient, ioer IOer, logger *slog.Logger, workPath, albumUrl string, noDownload bool) (*AlbumInfo, error) {
+	logger.Info("fetching from " + albumUrl)
+	albumInfo, err := FetchAlbumInfo(ctx, httpClient, albumUrl)
 	if err != nil {
 		return nil, err
 	}
-	slog.Info(
+	logger.Info(
 		"fetched info",
 		"name", albumInfo.Name,
 		"year", albumInfo.Year,
@@ -177,29 +187,32 @@ func FetchAlbum(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
 		"tracks", len(albumInfo.Tracks),
 	)
 
-	folderName := sanitizeFilename(albumInfo.Name)
+	folderName := path.Join(workPath, sanitizeFilename(albumInfo.Name))
 
-	err = os.MkdirAll(folderName, os.ModePerm)
+	err = ioer.MkdirAll(folderName, os.ModePerm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	download := func(u, kind string) {
-		slog.Info("downloading from " + u)
+		if noDownload {
+			return
+		}
+		logger.Info("downloading from " + u)
 		unescaped, _ := URL.QueryUnescape(u)
 		fileName := path.Join(folderName, sanitizeFilename(path.Base(unescaped)))
 		// Skip if exists
-		if _, err := os.Stat(fileName); err == nil {
-			slog.Info("skipped " + fileName)
+		if _, err := ioer.Stat(fileName); err == nil {
+			logger.Info("skipped " + fileName)
 			return
 		}
-		body, err := getUrl(ctx, unescaped)
+		body, err := getUrl(ctx, httpClient, unescaped)
 		if err != nil {
 			slog.Error("failed to download " + kind + ": " + err.Error())
 			return
 		}
 		defer body.Close()
-		file, err := os.Create(fileName)
+		file, err := ioer.Create(fileName)
 		if err != nil {
 			slog.Error("failed to create " + kind + " file: " + err.Error())
 			return
@@ -216,12 +229,12 @@ func FetchAlbum(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
 		download(imgUrl, "image")
 	}
 	if len(albumInfo.ImageUrls) == 0 {
-		slog.Info("no images found")
+		logger.Info("no images found")
 	}
 
 	for i := range albumInfo.Tracks {
 		t := &albumInfo.Tracks[i]
-		trackUrl, err := FetchTrackDownloadUrl(ctx, t.PageUrl)
+		trackUrl, err := FetchTrackDownloadUrl(ctx, httpClient, t.PageUrl)
 		if err != nil {
 			slog.Error("failed to fetch track download url: " + err.Error())
 			continue
@@ -230,12 +243,12 @@ func FetchAlbum(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
 		t.SongUrl = trackUrl
 	}
 	if len(albumInfo.Tracks) == 0 {
-		slog.Info("no tracks found")
+		logger.Info("no tracks found")
 	}
 
 	// Write summary
-	slog.Info("writing summary")
-	if summaryFile, err := os.Create(path.Join(folderName, "info.json")); err != nil {
+	logger.Info("writing summary")
+	if summaryFile, err := ioer.Create(path.Join(folderName, "info.json")); err != nil {
 		slog.Error("failed to create summary file: " + err.Error())
 	} else {
 		defer summaryFile.Close()
@@ -245,8 +258,8 @@ func FetchAlbum(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
 	}
 
 	// Write a Windows shortcut file
-	slog.Info("writing shortcut file")
-	if lnkFile, err := os.Create(path.Join(folderName, "page.url")); err != nil {
+	logger.Info("writing shortcut file")
+	if lnkFile, err := ioer.Create(path.Join(folderName, "page.url")); err != nil {
 		slog.Error("failed to create lnk file: " + err.Error())
 	} else {
 		defer lnkFile.Close()
