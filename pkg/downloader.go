@@ -105,8 +105,8 @@ func FetchAlbumInfo(ctx context.Context, albumUrl string) (*AlbumInfo, error) {
 	})
 
 	// Get links to images
-	doc.Find("#pageContent .albumImage img").Each(func(i int, s *goquery.Selection) {
-		imgUrl, ok := s.Attr("src")
+	doc.Find("#pageContent .albumImage a").Each(func(i int, s *goquery.Selection) {
+		imgUrl, ok := s.Attr("href")
 		if ok {
 			imgUrl, _ = joinUrl(albumUrl, imgUrl)
 			result.ImageUrls = append(result.ImageUrls, imgUrl)
