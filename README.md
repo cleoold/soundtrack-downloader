@@ -7,7 +7,7 @@ Script that downloads soundtracks from khinsider.com.
 Requires Go installed, run:
 
 ```bash
-make build
+make build-linux
 ```
 
 Executables will be in the `bin/` directory.
