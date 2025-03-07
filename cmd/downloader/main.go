@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/cleoold/soundtrack-downloader/cmd"
 	"github.com/cleoold/soundtrack-downloader/pkg"
 )
 
 func main() {
+	flag.Usage = cmd.PrintUsage
 	urlFlag := flag.String("url", "", "URL to download")
 	noDownloadFlag := flag.Bool("no-download", false, "Don't download the files. Default: false")
 	fixTags := flag.Bool("fix-tags", false, "Fix tags of the downloaded files. Default: false")

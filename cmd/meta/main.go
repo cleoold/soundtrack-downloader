@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/cleoold/soundtrack-downloader/cmd"
 	"github.com/cleoold/soundtrack-downloader/pkg"
 )
 
@@ -25,6 +26,7 @@ func (t *tagFlags) Set(value string) error {
 }
 
 func main() {
+	flag.Usage = cmd.PrintUsage
 	folderFlag := flag.String("folder", "", "Folder to fix tags")
 	tags := tagFlags{}
 	flag.Var(&tags, "tag", "Tag to set. Format: key=value. Multiple are supported. Available keys include 'ALBUM', 'DATE', 'ALBUMARTIST', 'ARTIST', 'GENRE' and so on. See https://taglib.org/api/p_propertymapping.html for more.")
