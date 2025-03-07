@@ -20,24 +20,6 @@ func (m mockClient) Do(req *http.Request) (*http.Response, error) {
 	return m.do(req)
 }
 
-type mockIoer struct {
-	mkdirAll func(string, os.FileMode) error
-	create   func(string) (io.WriteCloser, error)
-	stat     func(string) (os.FileInfo, error)
-}
-
-func (m mockIoer) MkdirAll(path string, perm os.FileMode) error {
-	return m.mkdirAll(path, perm)
-}
-
-func (m mockIoer) Create(name string) (io.WriteCloser, error) {
-	return m.create(name)
-}
-
-func (m mockIoer) Stat(name string) (os.FileInfo, error) {
-	return m.stat(name)
-}
-
 type mockWriteCloser struct {
 	write func([]byte) (int, error)
 	close func() error
@@ -70,7 +52,7 @@ func TestFetchAlbum(t *testing.T) {
 		}
 		logger := slog.New(slog.DiscardHandler)
 
-		_, err := FetchAlbum(context.Background(), client, nil, logger, ".", ".", false)
+		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false)
 		if err == nil || !strings.Contains(err.Error(), "album name") {
 			t.Fatalf("expected error, got nil")
 		}
@@ -95,26 +77,27 @@ func TestFetchAlbum(t *testing.T) {
 		}
 
 		fsRecord := map[string]string{}
-		ioer := mockIoer{
-			mkdirAll: func(path string, perm os.FileMode) error { return nil },
-			create: func(name string) (io.WriteCloser, error) {
-				fsRecord[name] = ""
-				return &mockWriteCloser{
-					write: func(p []byte) (n int, err error) {
-						fsRecord[name] += string(p)
-						return len(p), nil
-					},
-					close: func() error { return nil },
-				}, nil
-			},
-			stat: func(name string) (os.FileInfo, error) { return nil, &os.PathError{} },
+		mkMkdirAll := func(path string, perm os.FileMode) error { return nil }
+		mkCreate := func(name string) (io.WriteCloser, error) {
+			fsRecord[name] = ""
+			return &mockWriteCloser{
+				write: func(p []byte) (n int, err error) {
+					fsRecord[name] += string(p)
+					return len(p), nil
+				},
+				close: func() error { return nil },
+			}, nil
 		}
+		mkStat := func(name string) (os.FileInfo, error) { return nil, &os.PathError{} }
 
 		logger := slog.New(slog.DiscardHandler)
 
-		res, err := FetchAlbum(context.Background(), client, ioer, logger, ".", "https://example.com/", false)
+		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkCreate, mkStat, ".", "https://example.com/", false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if folder != "My Album" {
+			t.Fatalf("expected folder to be My Album, got %s", folder)
 		}
 		expAlbumInfo := AlbumInfo{
 			Url:       "https://example.com/",

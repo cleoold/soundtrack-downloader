@@ -164,17 +164,21 @@ func FetchTrackDownloadUrl(ctx context.Context, httpClient HttpDoClient, pageUrl
 	return result, nil
 }
 
-type IOer interface {
-	MkdirAll(string, os.FileMode) error
-	Create(string) (io.WriteCloser, error)
-	Stat(string) (os.FileInfo, error)
-}
-
-func FetchAlbum(ctx context.Context, httpClient HttpDoClient, ioer IOer, logger *slog.Logger, workPath, albumUrl string, noDownload bool) (*AlbumInfo, error) {
+func fetchAlbum(
+	ctx context.Context,
+	httpClient HttpDoClient,
+	logger *slog.Logger,
+	osMkdirAll func(string, os.FileMode) error,
+	osCreate func(string) (io.WriteCloser, error),
+	osStat func(string) (os.FileInfo, error),
+	workPath,
+	albumUrl string,
+	noDownload bool,
+) (*AlbumInfo, string, error) {
 	logger.Info("fetching from " + albumUrl)
 	albumInfo, err := FetchAlbumInfo(ctx, httpClient, albumUrl)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	logger.Info(
 		"fetched info",
@@ -189,9 +193,9 @@ func FetchAlbum(ctx context.Context, httpClient HttpDoClient, ioer IOer, logger 
 
 	folderName := path.Join(workPath, sanitizeFilename(albumInfo.Name))
 
-	err = ioer.MkdirAll(folderName, os.ModePerm)
+	err = osMkdirAll(folderName, os.ModePerm)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create directory: %w", err)
+		return nil, "", fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	download := func(u, kind string) {
@@ -202,7 +206,7 @@ func FetchAlbum(ctx context.Context, httpClient HttpDoClient, ioer IOer, logger 
 		unescaped, _ := URL.QueryUnescape(u)
 		fileName := path.Join(folderName, sanitizeFilename(path.Base(unescaped)))
 		// Skip if exists
-		if _, err := ioer.Stat(fileName); err == nil {
+		if _, err := osStat(fileName); err == nil {
 			logger.Info("skipped " + fileName)
 			return
 		}
@@ -212,7 +216,7 @@ func FetchAlbum(ctx context.Context, httpClient HttpDoClient, ioer IOer, logger 
 			return
 		}
 		defer body.Close()
-		file, err := ioer.Create(fileName)
+		file, err := osCreate(fileName)
 		if err != nil {
 			slog.Error("failed to create " + kind + " file: " + err.Error())
 			return
@@ -248,7 +252,7 @@ func FetchAlbum(ctx context.Context, httpClient HttpDoClient, ioer IOer, logger 
 
 	// Write summary
 	logger.Info("writing summary")
-	if summaryFile, err := ioer.Create(path.Join(folderName, "info.json")); err != nil {
+	if summaryFile, err := osCreate(path.Join(folderName, "info.json")); err != nil {
 		slog.Error("failed to create summary file: " + err.Error())
 	} else {
 		defer summaryFile.Close()
@@ -259,7 +263,7 @@ func FetchAlbum(ctx context.Context, httpClient HttpDoClient, ioer IOer, logger 
 
 	// Write a Windows shortcut file
 	logger.Info("writing shortcut file")
-	if lnkFile, err := ioer.Create(path.Join(folderName, "page.url")); err != nil {
+	if lnkFile, err := osCreate(path.Join(folderName, "page.url")); err != nil {
 		slog.Error("failed to create lnk file: " + err.Error())
 	} else {
 		defer lnkFile.Close()
@@ -270,5 +274,11 @@ func FetchAlbum(ctx context.Context, httpClient HttpDoClient, ioer IOer, logger 
 		lnkFile.Write([]byte("URL=" + albumUrl + "\r\n"))
 	}
 
-	return albumInfo, nil
+	return albumInfo, folderName, nil
+}
+func FetchAlbum(ctx context.Context, httpClient HttpDoClient, logger *slog.Logger, workPath, albumUrl string, noDownload bool) (*AlbumInfo, string, error) {
+	osCreate := func(name string) (io.WriteCloser, error) {
+		return os.Create(name) // covariance
+	}
+	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownload)
 }
