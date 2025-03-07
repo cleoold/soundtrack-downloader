@@ -30,7 +30,7 @@ func main() {
 	}
 	if *fixTags {
 		slog.Info("fixing tags")
-		err := pkg.FixTags(slog.Default(), pkg.AlbumInfoToTags(info), folder, true, false, false)
+		err := pkg.FixTags(slog.Default(), pkg.AlbumInfoToTags(info), folder, true, false, false, false)
 		if err != nil {
 			slog.Error(err.Error())
 			os.Exit(1)

@@ -33,6 +33,7 @@ func main() {
 	inferNamesFlag := flag.Bool("infer-names", true, "Infer names from file names. Default: true")
 	overwriteFlag := flag.Bool("overwrite", false, "Overwrite existing tags. Default: false")
 	readAlbumInfoFlag := flag.Bool("read-album-info", false, "Read album info from info.json. Default: false")
+	noFixFlag := flag.Bool("no-fix", false, "Only print the proposed changes but don't fix tags. Default: false")
 	flag.Parse()
 	if *folderFlag == "" {
 		flag.Usage()
@@ -40,7 +41,7 @@ func main() {
 		return
 	}
 
-	err := pkg.FixTags(slog.Default(), tags, *folderFlag, *inferNamesFlag, *overwriteFlag, *readAlbumInfoFlag)
+	err := pkg.FixTags(slog.Default(), tags, *folderFlag, *inferNamesFlag, *overwriteFlag, *readAlbumInfoFlag, *noFixFlag)
 	if err != nil {
 		slog.Error(err.Error())
 	}

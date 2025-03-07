@@ -31,7 +31,8 @@ func fixTags(
 	workpath string,
 	inferNames,
 	overwrite,
-	readAlbumInfo bool,
+	readAlbumInfo,
+	noFix bool,
 ) error {
 	if readAlbumInfo {
 		var albumInfo AlbumInfo
@@ -97,11 +98,17 @@ func fixTags(
 			continue
 		}
 
-		keys := make([]string, 0, len(actualTags))
-		for k := range actualTags {
-			keys = append(keys, k)
+		pairs := make([]string, 0, len(actualTags))
+		for k, v := range actualTags {
+			pairs = append(pairs, fmt.Sprintf("%s=\"%s\"", k, v[0]))
 		}
-		logger.Info(fmt.Sprintf("setting %d tags for %s: %s", len(actualTags), dirEntry.Name(), strings.Join(keys, ", ")))
+		catPairs := strings.Join(pairs, ", ")
+		if noFix {
+			logger.Info(fmt.Sprintf("proposed %d tags for %s: %s", len(pairs), dirEntry.Name(), catPairs))
+			continue
+		}
+
+		logger.Info(fmt.Sprintf("setting %d tags for %s: %v", len(pairs), dirEntry.Name(), catPairs))
 
 		if err := taglibWriteTags(songPath, actualTags, 0); err != nil {
 			logger.Error(fmt.Sprintf("failed to write tags for %s: %s", dirEntry.Name(), err.Error()))
@@ -110,11 +117,11 @@ func fixTags(
 	return nil
 }
 
-func FixTags(logger *slog.Logger, tags map[string]string, workpath string, inferNames, overwrite, readAlbumInfo bool) error {
+func FixTags(logger *slog.Logger, tags map[string]string, workpath string, inferNames, overwrite, readAlbumInfo, noFix bool) error {
 	osOpen := func(name string) (io.ReadCloser, error) {
 		return os.Open(name) // covariance
 	}
-	return fixTags(logger, osOpen, os.ReadDir, taglib.ReadTags, taglib.WriteTags, tags, workpath, inferNames, overwrite, readAlbumInfo)
+	return fixTags(logger, osOpen, os.ReadDir, taglib.ReadTags, taglib.WriteTags, tags, workpath, inferNames, overwrite, readAlbumInfo, noFix)
 }
 
 func AlbumInfoToTags(albumInfo *AlbumInfo) map[string]string {

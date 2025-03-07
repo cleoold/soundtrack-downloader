@@ -60,6 +60,8 @@ Usage of bin/meta:
         Folder to fix tags
   -infer-names
         Infer names from file names. Default: true (default true)
+  -no-fix
+        Only print the proposed changes but don't fix tags. Default: false
   -overwrite
         Overwrite existing tags. Default: false
   -read-album-info

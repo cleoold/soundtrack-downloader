@@ -74,7 +74,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, "My Album", true, false, true)
+		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, "My Album", true, false, true, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -135,7 +135,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, "My Album", true, false, false)
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, "My Album", true, false, false, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -189,7 +189,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, nil, "My Album", true, true, false)
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, nil, "My Album", true, true, false, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -203,6 +203,30 @@ func TestFixTags(t *testing.T) {
 		}
 		if !reflect.DeepEqual(records, expectedRecords) {
 			t.Fatalf("expected records to be %v, got %v", expectedRecords, records)
+		}
+	})
+
+	t.Run("happy path only prints the proposed changes when noFix is true", func(t *testing.T) {
+		providedtags := map[string]string{
+			taglib.Artist:      "MyArtist",
+			taglib.AlbumArtist: "MyAlbumArtist",
+		}
+		mkOsReadDir := func(name string) ([]os.DirEntry, error) {
+			if name != "My Album" {
+				t.Fatalf("expected to read My Album, got %s", name)
+			}
+			return []os.DirEntry{&mockDirEntry{name: "Song1 - Happy.mp3", isDir: false}}, nil
+		}
+		mkReadTags := func(path string) (map[string][]string, error) {
+			return map[string][]string{}, nil
+		}
+		mkWriteTags := func(path string, tags map[string][]string, opts taglib.WriteOption) error {
+			t.Fatalf("unexpected write to %s", path)
+			return nil
+		}
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, "My Album", true, true, false, true)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
 		}
 	})
 }
