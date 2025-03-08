@@ -1,18 +1,32 @@
 MAKEFLAGS += --always-make
 
-build-all: build-linux build-windows build-apple-silicon
+GO=go
+GOOS_ARCH_PAIRS = linux-amd64 linux-arm64 windows-amd64 windows-arm64 darwin-amd64 darwin-arm64
+OUTDIR=bin
+EXES = downloader meta
 
-build-linux:
-	GOOS=linux GOARCH=amd64 go build -o bin/downloader ./cmd/downloader
-	GOOS=linux GOARCH=amd64 go build -o bin/meta ./cmd/meta
+build:
+	for exe in $(EXES); do $(GO) build -o $(OUTDIR)/$$exe ./cmd/$$exe; done
 
-build-windows:
-	GOOS=windows GOARCH=amd64 go build -o bin/downloader.exe ./cmd/downloader
-	GOOS=windows GOARCH=amd64 go build -o bin/meta.exe ./cmd/meta
+build-all: $(foreach pair, $(GOOS_ARCH_PAIRS), build-arch-$(pair))
 
-build-apple-silicon:
-	GOOS=darwin GOARCH=arm64 go build -o bin/downloader_arm64 ./cmd/downloader
-	GOOS=darwin GOARCH=arm64 go build -o bin/meta_arm64 ./cmd/meta
+build-arch-%:
+	@osarch=$*; \
+	os=$$(echo $$osarch | cut -d'-' -f1); \
+	arch=$$(echo $$osarch | cut -d'-' -f2); \
+	for exe in $(EXES); do \
+		if [ "$$os" = "windows" ]; then \
+			out="$(OUTDIR)/$$exe-$$os-$$arch.exe"; \
+		else \
+			out="$(OUTDIR)/$$exe-$$os-$$arch"; \
+		fi; \
+		CMD="GOOS=$$os GOARCH=$$arch $(GO) build -o $$out ./cmd/$$exe"; \
+		echo $$CMD; \
+		eval $$CMD; \
+	done
 
 test:
-	go test -v ./...
+	$(GO) test -v ./...
+
+clean:
+	rm -f $(OUTDIR)/*
