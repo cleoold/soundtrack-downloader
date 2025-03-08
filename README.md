@@ -52,6 +52,8 @@ Usage of bin/downloader:
         Fix tags of the downloaded files. Default: false
   -no-download
         Don't download the files. Default: false
+  -overwrite
+        Redownload existing files. This option does not affect generation of info.json and link. Default: false
   -url string
         URL to download
 

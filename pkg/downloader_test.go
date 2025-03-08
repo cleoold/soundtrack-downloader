@@ -12,12 +12,17 @@ import (
 	"testing"
 )
 
-type mockClient struct {
-	do func(*http.Request) (*http.Response, error)
+type stubClient map[string]map[string]struct {
+	code    int
+	content string
 }
 
-func (m mockClient) Do(req *http.Request) (*http.Response, error) {
-	return m.do(req)
+func (m stubClient) Do(req *http.Request) (*http.Response, error) {
+	pair := m[req.URL.String()][req.Method]
+	return &http.Response{
+		StatusCode: pair.code,
+		Body:       io.NopCloser(strings.NewReader(pair.content)),
+	}, nil
 }
 
 type mockWriteCloser struct {
@@ -33,6 +38,19 @@ func (m mockWriteCloser) Close() error {
 	return m.close()
 }
 
+type FSRecorder map[string]string
+
+func (m FSRecorder) Create(name string) (io.WriteCloser, error) {
+	m[name] = ""
+	return &mockWriteCloser{
+		write: func(p []byte) (n int, err error) {
+			m[name] += string(p)
+			return len(p), nil
+		},
+		close: func() error { return nil },
+	}, nil
+}
+
 var (
 	//go:embed testdata/album_home.html
 	home string
@@ -41,58 +59,38 @@ var (
 )
 
 func TestFetchAlbum(t *testing.T) {
-	t.Run("title not found exit early", func(t *testing.T) {
-		client := mockClient{
-			do: func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader("<div></div>")),
-				}, nil
-			},
-		}
-		logger := slog.New(slog.DiscardHandler)
+	logger := slog.New(slog.DiscardHandler)
 
-		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false)
+	t.Run("title not found exit early", func(t *testing.T) {
+		client := stubClient{
+			".": {"GET": {http.StatusOK, "<div></div>"}},
+		}
+		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false)
 		if err == nil || !strings.Contains(err.Error(), "album name") {
 			t.Fatalf("expected error, got nil")
 		}
 	})
 
-	t.Run("happy path with download", func(t *testing.T) {
-		mp := map[string]string{
-			"https://example.com/":                  home,
-			"https://example.com/01.%2520song1.mp3": song1,
-			"https://example.com/01.%2520song2.mp3": strings.ReplaceAll(strings.ReplaceAll(song1, "song1", "song2"), "01", "02"),
-			"https://download.com/Cover.jpg":        "content of cover",
-			"https://download.com/01.%20song1.flac": "content of song1",
-			"https://download.com/02.%20song2.flac": "content of song2",
-		}
-		client := mockClient{
-			do: func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(mp[req.URL.String()])),
-				}, nil
-			},
+	t.Run("happy path with download and overwrites existing file", func(t *testing.T) {
+		client := stubClient{
+			"https://example.com/":                  {"GET": {http.StatusOK, home}},
+			"https://example.com/01.%2520song1.mp3": {"GET": {http.StatusOK, song1}},
+			"https://example.com/01.%2520song2.mp3": {"GET": {http.StatusOK, strings.ReplaceAll(strings.ReplaceAll(song1, "song1", "song2"), "01", "02")}},
+			"https://download.com/Cover.jpg":        {"GET": {http.StatusOK, "content of cover"}},
+			"https://download.com/01.%20song1.flac": {"GET": {http.StatusOK, "content of song1"}},
+			"https://download.com/02.%20song2.flac": {"GET": {http.StatusOK, "content of song2"}},
 		}
 
-		fsRecord := map[string]string{}
 		mkMkdirAll := func(path string, perm os.FileMode) error { return nil }
-		mkCreate := func(name string) (io.WriteCloser, error) {
-			fsRecord[name] = ""
-			return &mockWriteCloser{
-				write: func(p []byte) (n int, err error) {
-					fsRecord[name] += string(p)
-					return len(p), nil
-				},
-				close: func() error { return nil },
-			}, nil
+		mkFS := FSRecorder{}
+		mkStat := func(name string) (os.FileInfo, error) {
+			if name == "My Album/01. song1.flac" {
+				return nil, nil
+			}
+			return nil, os.ErrNotExist
 		}
-		mkStat := func(name string) (os.FileInfo, error) { return nil, &os.PathError{} }
 
-		logger := slog.New(slog.DiscardHandler)
-
-		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkCreate, mkStat, ".", "https://example.com/", false)
+		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -117,19 +115,68 @@ func TestFetchAlbum(t *testing.T) {
 		}
 
 		// Check the downloaded files
+		expFileCount := 5
+		if len(mkFS) != expFileCount {
+			t.Fatalf("expected %d files to be created, got %d", expFileCount, len(mkFS))
+		}
 		expDownloadedFiles := map[string]string{
 			"My Album/Cover.jpg":      "content of cover",
 			"My Album/01. song1.flac": "content of song1",
 			"My Album/02. song2.flac": "content of song2",
 		}
 		for path, content := range expDownloadedFiles {
-			if fsRecord[path] != content {
-				t.Fatalf("expected %s to have content %s, got %s", path, content, fsRecord[path])
+			if mkFS[path] != content {
+				t.Fatalf("expected %s to have content %s, got %s", path, content, mkFS[path])
 			}
 		}
 
 		for _, fn := range []string{"My Album/info.json", "My Album/page.url"} {
-			if !strings.Contains(fsRecord[fn], "https://example.com/") {
+			if !strings.Contains(mkFS[fn], "https://example.com/") {
+				t.Fatalf("expected %s to be created", fn)
+			}
+		}
+	})
+
+	t.Run("happy path with download skips existing image and fails to download track", func(t *testing.T) {
+		client := stubClient{
+			"https://example.com/":                  {"GET": {http.StatusOK, home}},
+			"https://example.com/01.%2520song1.mp3": {"GET": {http.StatusOK, song1}},
+			"https://example.com/01.%2520song2.mp3": {"GET": {http.StatusOK, strings.ReplaceAll(strings.ReplaceAll(song1, "song1", "song2"), "01", "02")}},
+			"https://download.com/Cover.jpg":        {"GET": {http.StatusOK, "content of cover"}},
+			"https://download.com/01.%20song1.flac": {"GET": {http.StatusNotFound, ""}},
+			"https://download.com/02.%20song2.flac": {"GET": {http.StatusOK, "content of song2"}},
+		}
+
+		mkMkdirAll := func(path string, perm os.FileMode) error { return nil }
+		mkFS := FSRecorder{}
+		mkStat := func(name string) (os.FileInfo, error) {
+			if name == "My Album/Cover.jpg" {
+				return nil, nil
+			}
+			return nil, os.ErrNotExist
+		}
+
+		_, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Check the downloaded files
+		expFileCount := 3
+		if len(mkFS) != expFileCount {
+			t.Fatalf("expected %d files to be created, got %d", expFileCount, len(mkFS))
+		}
+		expDownloadedFiles := map[string]string{
+			"My Album/02. song2.flac": "content of song2",
+		}
+		for path, content := range expDownloadedFiles {
+			if mkFS[path] != content {
+				t.Fatalf("expected %s to have content %s, got %s", path, content, mkFS[path])
+			}
+		}
+
+		for _, fn := range []string{"My Album/info.json", "My Album/page.url"} {
+			if !strings.Contains(mkFS[fn], "https://example.com/") {
 				t.Fatalf("expected %s to be created", fn)
 			}
 		}

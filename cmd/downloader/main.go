@@ -16,14 +16,18 @@ func main() {
 	urlFlag := flag.String("url", "", "URL to download")
 	noDownloadFlag := flag.Bool("no-download", false, "Don't download the files. Default: false")
 	fixTags := flag.Bool("fix-tags", false, "Fix tags of the downloaded files. Default: false")
+	overwriteFlag := flag.Bool("overwrite", false, "Redownload existing files. This option does not affect generation of info.json and link. Default: false")
 	flag.Parse()
 	if *urlFlag == "" {
 		flag.Usage()
 		slog.Error("url is required")
 		os.Exit(1)
 	}
+	if *noDownloadFlag && *overwriteFlag {
+		slog.Warn("specifying overwrite while nodownload is set has no effect")
+	}
 
-	info, folder, err := pkg.FetchAlbum(context.Background(), http.DefaultClient, slog.Default(), ".", *urlFlag, *noDownloadFlag)
+	info, folder, err := pkg.FetchAlbum(context.Background(), http.DefaultClient, slog.Default(), ".", *urlFlag, *noDownloadFlag, *overwriteFlag)
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
