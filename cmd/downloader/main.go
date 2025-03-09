@@ -38,6 +38,7 @@ func (t trackFlags) Set(value string) error {
 }
 
 func main() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	flag.Usage = cmd.PrintUsage
 	urlFlag := flag.String("url", "", "URL to download")
 	noDownloadImageFlag := flag.Bool("no-download-image", false, "Don't download images. Default: false")
@@ -50,7 +51,7 @@ func main() {
 	flag.Parse()
 	if *urlFlag == "" {
 		flag.Usage()
-		slog.Error("url is required")
+		logger.Error("url is required")
 		os.Exit(1)
 	}
 	if *noDownloadFlag {
@@ -61,24 +62,24 @@ func main() {
 		*noDownloadFlag = true
 	}
 	if *noDownloadFlag && *overwriteFlag {
-		slog.Warn("specifying overwrite while no-download is set has no effect")
+		logger.Warn("specifying overwrite while no-download is set has no effect")
 	}
 	if len(trackFlag) == 0 {
 		trackFlag = nil
 	} else if *noDownloadTrackFlag {
-		slog.Warn("specifying track while no-download-track is set has no effect")
+		logger.Warn("specifying track while no-download-track is set has no effect")
 	}
 
-	info, folder, err := pkg.FetchAlbum(context.Background(), http.DefaultClient, slog.Default(), ".", *urlFlag, *noDownloadImageFlag, *noDownloadTrackFlag, *overwriteFlag, pkg.TrackNumberSet(trackFlag))
+	info, folder, err := pkg.FetchAlbum(context.Background(), http.DefaultClient, logger, ".", *urlFlag, *noDownloadImageFlag, *noDownloadTrackFlag, *overwriteFlag, pkg.TrackNumberSet(trackFlag))
 	if err != nil {
-		slog.Error(err.Error())
+		logger.Error(err.Error())
 		os.Exit(1)
 	}
 	if *fixTags {
-		slog.Info("fixing tags")
-		err := pkg.FixTags(slog.Default(), pkg.AlbumInfoToTags(info), pkg.AlbumInfoToFileTags(info), folder, false, false, false, false)
+		logger.Info("fixing tags")
+		err := pkg.FixTags(logger, pkg.AlbumInfoToTags(info), pkg.AlbumInfoToFileTags(info), folder, false, false, false, false)
 		if err != nil {
-			slog.Error(err.Error())
+			logger.Error(err.Error())
 			os.Exit(1)
 		}
 	}

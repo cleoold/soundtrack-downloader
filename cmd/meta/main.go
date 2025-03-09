@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/cleoold/soundtrack-downloader/cmd"
@@ -26,6 +27,7 @@ func (t *tagFlags) Set(value string) error {
 }
 
 func main() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	flag.Usage = cmd.PrintUsage
 	folderFlag := flag.String("folder", "", "Folder to fix tags")
 	tags := tagFlags{}
@@ -37,12 +39,12 @@ func main() {
 	flag.Parse()
 	if *folderFlag == "" {
 		flag.Usage()
-		slog.Error("folder is required")
+		logger.Error("folder is required")
 		return
 	}
 
-	err := pkg.FixTags(slog.Default(), tags, nil, *folderFlag, *inferNamesFlag, *overwriteFlag, *readAlbumInfoFlag, *noFixFlag)
+	err := pkg.FixTags(logger, tags, nil, *folderFlag, *inferNamesFlag, *overwriteFlag, *readAlbumInfoFlag, *noFixFlag)
 	if err != nil {
-		slog.Error(err.Error())
+		logger.Error(err.Error())
 	}
 }
