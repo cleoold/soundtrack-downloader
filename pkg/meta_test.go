@@ -25,7 +25,7 @@ func (m *mockDirEntry) Type() os.FileMode          { return 0 }
 
 func TestFixTags(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
-	t.Run("happy path merges provided tags, album info, inferred triplets and existing tags in order", func(t *testing.T) {
+	t.Run("happy path merges provided tags, inferred triplets, album info and existing tags in order", func(t *testing.T) {
 		providedtags := map[string]string{
 			taglib.Artist:      "MyArtist",
 			taglib.AlbumArtist: "MyAlbumArtist",
@@ -74,7 +74,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, "My Album", true, false, true, false)
+		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, "My Album", true, false, true, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -135,7 +135,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, "My Album", true, false, false, false)
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, "My Album", true, false, false, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -189,7 +189,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, nil, "My Album", true, true, false, false)
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, nil, nil, "My Album", true, true, false, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -199,6 +199,91 @@ func TestFixTags(t *testing.T) {
 			},
 			"My Album/Song2 - Sad.mp3": {
 				taglib.Title: {"Song2 - Sad"},
+			},
+		}
+		if !reflect.DeepEqual(records, expectedRecords) {
+			t.Fatalf("expected records to be %v, got %v", expectedRecords, records)
+		}
+	})
+
+	t.Run("happy path merges provided file tags, provided tags, album info, and album info file tags in order", func(t *testing.T) {
+		providedFileTags := map[string]map[string]string{
+			"1-01. Song1.flac": {
+				taglib.Artist:      "Solo",
+				taglib.Title:       "Song 1 (Fixed)",
+				taglib.DiscNumber:  "1",
+				taglib.TrackNumber: "01",
+			},
+		}
+		providedTags := map[string]string{
+			taglib.Date:        "2022",
+			taglib.AlbumArtist: "My Album Artist",
+		}
+		mkOpen := func(name string) (io.ReadCloser, error) {
+			if name != "My Album/info.json" {
+				t.Fatalf("expected to open info.json, got %s", name)
+			}
+			info := AlbumInfo{
+				Name:      "My Album",
+				Year:      "2021",
+				Developer: "My Dev",
+				Tracks: []TrackInfo{
+					{
+						SongUrl:     "https://example.com/1-01. Song1.flac",
+						Name:        "Song 1",
+						DiscNumber:  "1",
+						TrackNumber: "1",
+					},
+					{
+						SongUrl:     "https://example.com/1-02.%20Song2.flac",
+						Name:        "Song 2",
+						DiscNumber:  "1",
+						TrackNumber: "2",
+					},
+				},
+			}
+			buffer := new(bytes.Buffer)
+			_ = json.NewEncoder(buffer).Encode(info)
+			return io.NopCloser(buffer), nil
+		}
+		mkOsReadDir := func(name string) ([]os.DirEntry, error) {
+			if name != "My Album" {
+				t.Fatalf("expected to read My Album, got %s", name)
+			}
+			return []os.DirEntry{
+				&mockDirEntry{name: "1-01. Song1.flac"},
+				&mockDirEntry{name: "1-02. Song2.flac"},
+				&mockDirEntry{name: "info.json"},
+			}, nil
+		}
+		mkReadTags := func(path string) (map[string][]string, error) { return nil, nil }
+		records := map[string]map[string][]string{}
+		mkWriteTags := func(path string, tags map[string][]string, opts taglib.WriteOption) error {
+			records[path] = tags
+			return nil
+		}
+		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedTags, providedFileTags, "My Album", false, true, true, false)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		expectedRecords := map[string]map[string][]string{
+			"My Album/1-01. Song1.flac": {
+				taglib.AlbumArtist: {"My Album Artist"},
+				taglib.Artist:      {"Solo"},
+				taglib.Album:       {"My Album"},
+				taglib.Date:        {"2022"},
+				taglib.Title:       {"Song 1 (Fixed)"},
+				taglib.DiscNumber:  {"1"},
+				taglib.TrackNumber: {"01"},
+			},
+			"My Album/1-02. Song2.flac": {
+				taglib.AlbumArtist: {"My Album Artist"},
+				taglib.Artist:      {"My Dev"},
+				taglib.Album:       {"My Album"},
+				taglib.Date:        {"2022"},
+				taglib.Title:       {"Song 2"},
+				taglib.DiscNumber:  {"1"},
+				taglib.TrackNumber: {"2"},
 			},
 		}
 		if !reflect.DeepEqual(records, expectedRecords) {
@@ -224,7 +309,7 @@ func TestFixTags(t *testing.T) {
 			t.Fatalf("unexpected write to %s", path)
 			return nil
 		}
-		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, "My Album", true, true, false, true)
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, "My Album", true, true, false, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -279,6 +364,57 @@ func TestAlbumInfoToTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tags := AlbumInfoToTags(&tt.info)
+			if !reflect.DeepEqual(tags, tt.expected) {
+				t.Fatalf("expected tags to be %v, got %v", tt.expected, tags)
+			}
+		})
+	}
+}
+
+func TestAlbumInfoToFileTags(t *testing.T) {
+	tests := []struct {
+		name     string
+		info     AlbumInfo
+		expected map[string]map[string]string
+	}{
+		{
+			name: "happy path converts AlbumInfo to file tags",
+			info: AlbumInfo{
+				Tracks: []TrackInfo{
+					{
+						Name:        "Song1",
+						DiscNumber:  "1",
+						TrackNumber: "01",
+						SongUrl:     "https://example.com/1-01. Song1.flac",
+					},
+					{
+						Name:        "Song2",
+						TrackNumber: "02",
+						SongUrl:     "https://example.com/this-is-that/you%20%28you%20know%29/1-01.%20My%20Song%20%28By%20You%29.mp3",
+					},
+				},
+			},
+			expected: map[string]map[string]string{
+				"1-01. Song1.flac": {
+					taglib.Title:       "Song1",
+					taglib.DiscNumber:  "1",
+					taglib.TrackNumber: "01",
+				},
+				"1-01. My Song (By You).mp3": {
+					taglib.Title:       "Song2",
+					taglib.TrackNumber: "02",
+				},
+			},
+		},
+		{
+			name:     "happy path converts AlbumInfo to file tags with empty fields",
+			info:     AlbumInfo{Name: "MyAlbum"},
+			expected: map[string]map[string]string{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tags := AlbumInfoToFileTags(&tt.info)
 			if !reflect.DeepEqual(tags, tt.expected) {
 				t.Fatalf("expected tags to be %v, got %v", tt.expected, tags)
 			}

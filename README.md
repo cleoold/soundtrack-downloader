@@ -28,7 +28,7 @@ At times the downloaded tracks may not have all the metadata so won't display pr
 bin/downloader -url https://downloads.khinsider.com/game-soundtracks/album/<some-album> -fix-tags
 ```
 
-It will then, if missing, populate metadata fields such as "Artist", "Album name" (obtained from the website), "Title" and "Track number" (obtained from the track's filename).
+It will then, if missing, populate metadata fields such as "Artist", "Album name", "Title" and "Track number" (retrieved from the album website).
 
 The metadata-fixing process can also be done retroactively after the download by using
 
@@ -45,6 +45,8 @@ bin/meta -folder <Some Folder> -read-album-info -tag ARTIST=SomeArtist -tag ALBU
 ```
 
 ## Synopsis
+
+The utility provides many flags to customize its behavior.
 
 ```
 Usage of bin/downloader:

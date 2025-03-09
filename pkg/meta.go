@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"maps"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -21,6 +22,22 @@ var (
 	trackNameRegex = regexp.MustCompile(`^(\d+)\.\s*(.+)\.(mp3|flac)$`)
 )
 
+func inferTagsFromFileName(fileName string) map[string]string {
+	res := map[string]string{}
+	if match := discTrackNameRegex.FindStringSubmatch(fileName); match != nil {
+		// there's also DiscTotal
+		res[taglib.DiscNumber] = match[1]
+		res[taglib.TrackNumber] = match[2]
+		res[taglib.Title] = match[3]
+	} else if match := trackNameRegex.FindStringSubmatch(fileName); match != nil {
+		res[taglib.TrackNumber] = match[1]
+		res[taglib.Title] = match[2]
+	} else {
+		res[taglib.Title] = strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	}
+	return res
+}
+
 func fixTags(
 	logger *slog.Logger,
 	osOpen func(name string) (io.ReadCloser, error),
@@ -28,12 +45,20 @@ func fixTags(
 	taglibReadTags func(path string) (map[string][]string, error),
 	taglibWriteTags func(path string, tags map[string][]string, opts taglib.WriteOption) error,
 	tags map[string]string,
+	fileSpecificTags map[string]map[string]string,
 	workpath string,
 	inferNames,
 	overwrite,
 	readAlbumInfo,
 	noFix bool,
 ) error {
+	// Precedence: supplied file-specific tags
+	// > supplied tags
+	// > inferred file-specific tags
+	// > albumInfo file-specific tags
+	// > albumInfo tags
+	var albumInfoTags map[string]string
+	var albumInfoFileSpecificTags map[string]map[string]string
 	if readAlbumInfo {
 		var albumInfo AlbumInfo
 		f, err := osOpen(filepath.Join(workpath, "info.json"))
@@ -44,9 +69,8 @@ func fixTags(
 		if err := json.NewDecoder(f).Decode(&albumInfo); err != nil {
 			return err
 		}
-		atags := AlbumInfoToTags(&albumInfo)
-		maps.Copy(atags, tags)
-		tags = atags
+		albumInfoTags = AlbumInfoToTags(&albumInfo)
+		albumInfoFileSpecificTags = AlbumInfoToFileTags(&albumInfo)
 	}
 
 	dirEntries, err := osReadDir(workpath)
@@ -60,23 +84,23 @@ func fixTags(
 			continue
 		}
 
-		// Obtain numbers and title
 		actualTags := map[string][]string{}
-		if inferNames {
-			if match := discTrackNameRegex.FindStringSubmatch(dirEntry.Name()); match != nil {
-				// there's also DiscTotal
-				actualTags[taglib.DiscNumber] = []string{match[1]}
-				actualTags[taglib.TrackNumber] = []string{match[2]}
-				actualTags[taglib.Title] = []string{match[3]}
-			} else if match := trackNameRegex.FindStringSubmatch(dirEntry.Name()); match != nil {
-				actualTags[taglib.TrackNumber] = []string{match[1]}
-				actualTags[taglib.Title] = []string{match[2]}
-			} else {
-				actualTags[taglib.Title] = []string{strings.TrimSuffix(dirEntry.Name(), ext)}
+		stackTags := func(src map[string]string) {
+			for k, v := range src {
+				actualTags[k] = []string{v}
 			}
 		}
-		for k, v := range tags {
-			actualTags[k] = []string{v}
+
+		stackTags(albumInfoTags)
+		if fileTags, ok := albumInfoFileSpecificTags[dirEntry.Name()]; ok {
+			stackTags(fileTags)
+		}
+		if inferNames {
+			stackTags(inferTagsFromFileName(dirEntry.Name()))
+		}
+		stackTags(tags)
+		if fileTags, ok := fileSpecificTags[dirEntry.Name()]; ok {
+			stackTags(fileTags)
 		}
 
 		songPath := filepath.Join(workpath, dirEntry.Name())
@@ -117,11 +141,20 @@ func fixTags(
 	return nil
 }
 
-func FixTags(logger *slog.Logger, tags map[string]string, workpath string, inferNames, overwrite, readAlbumInfo, noFix bool) error {
+func FixTags(
+	logger *slog.Logger,
+	tags map[string]string,
+	fileSpecificTags map[string]map[string]string,
+	workpath string,
+	inferNames,
+	overwrite,
+	readAlbumInfo,
+	noFix bool,
+) error {
 	osOpen := func(name string) (io.ReadCloser, error) {
 		return os.Open(name) // covariance
 	}
-	return fixTags(logger, osOpen, os.ReadDir, taglib.ReadTags, taglib.WriteTags, tags, workpath, inferNames, overwrite, readAlbumInfo, noFix)
+	return fixTags(logger, osOpen, os.ReadDir, taglib.ReadTags, taglib.WriteTags, tags, fileSpecificTags, workpath, inferNames, overwrite, readAlbumInfo, noFix)
 }
 
 func AlbumInfoToTags(albumInfo *AlbumInfo) map[string]string {
@@ -147,4 +180,27 @@ func AlbumInfoToTags(albumInfo *AlbumInfo) map[string]string {
 		tags[taglib.Genre] = albumInfo.AlbumType
 	}
 	return tags
+}
+
+// Maps file names to tags
+func AlbumInfoToFileTags(albumInfo *AlbumInfo) map[string]map[string]string {
+	res := map[string]map[string]string{}
+	for i := range albumInfo.Tracks {
+		t := &albumInfo.Tracks[i]
+		tags := map[string]string{}
+		if t.Name != "" {
+			tags[taglib.Title] = t.Name
+		}
+		if t.DiscNumber != "" {
+			tags[taglib.DiscNumber] = t.DiscNumber
+		}
+		if t.TrackNumber != "" {
+			tags[taglib.TrackNumber] = t.TrackNumber
+		}
+		// Get file name
+		unescaped, _ := url.QueryUnescape(t.SongUrl)
+		fileName := sanitizeFilename(path.Base(unescaped))
+		res[fileName] = tags
+	}
+	return res
 }

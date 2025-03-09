@@ -41,7 +41,7 @@ func main() {
 		return
 	}
 
-	err := pkg.FixTags(slog.Default(), tags, *folderFlag, *inferNamesFlag, *overwriteFlag, *readAlbumInfoFlag, *noFixFlag)
+	err := pkg.FixTags(slog.Default(), tags, nil, *folderFlag, *inferNamesFlag, *overwriteFlag, *readAlbumInfoFlag, *noFixFlag)
 	if err != nil {
 		slog.Error(err.Error())
 	}
