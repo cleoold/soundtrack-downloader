@@ -195,7 +195,8 @@ func fetchAlbum(
 	osStat func(string) (os.FileInfo, error),
 	workPath,
 	albumUrl string,
-	noDownload bool,
+	noDownloadImage,
+	noDownloadTrack,
 	overwrite bool,
 	trackNumberSet TrackNumberSet,
 ) (*AlbumInfo, string, error) {
@@ -223,9 +224,6 @@ func fetchAlbum(
 	}
 
 	download := func(u, kind string) {
-		if noDownload {
-			return
-		}
 		logger.Info("downloading from " + u)
 		unescaped, _ := URL.QueryUnescape(u)
 		fileName := path.Join(folderName, sanitizeFilename(path.Base(unescaped)))
@@ -254,29 +252,33 @@ func fetchAlbum(
 		}
 	}
 
-	for _, imgUrl := range albumInfo.ImageUrls {
-		download(imgUrl, "image")
-	}
-	if len(albumInfo.ImageUrls) == 0 {
-		logger.Info("no images found")
+	if !noDownloadImage {
+		for _, imgUrl := range albumInfo.ImageUrls {
+			download(imgUrl, "image")
+		}
+		if len(albumInfo.ImageUrls) == 0 {
+			logger.Info("no images found")
+		}
 	}
 
-	for i := range albumInfo.Tracks {
-		t := &albumInfo.Tracks[i]
-		if !trackNumberSet.Contains(t) {
-			slog.Debug("skipping track " + t.Name)
-			continue
+	if !noDownloadTrack {
+		for i := range albumInfo.Tracks {
+			t := &albumInfo.Tracks[i]
+			if !trackNumberSet.Contains(t) {
+				slog.Debug("skipping track " + t.Name)
+				continue
+			}
+			trackUrl, err := FetchTrackDownloadUrl(ctx, httpClient, t.PageUrl)
+			if err != nil {
+				slog.Error("failed to fetch track download url: " + err.Error())
+				continue
+			}
+			t.SongUrl = trackUrl
+			download(trackUrl, "track")
 		}
-		trackUrl, err := FetchTrackDownloadUrl(ctx, httpClient, t.PageUrl)
-		if err != nil {
-			slog.Error("failed to fetch track download url: " + err.Error())
-			continue
+		if len(albumInfo.Tracks) == 0 {
+			logger.Info("no tracks found")
 		}
-		t.SongUrl = trackUrl
-		download(trackUrl, "track")
-	}
-	if len(albumInfo.Tracks) == 0 {
-		logger.Info("no tracks found")
 	}
 
 	// Write summary
@@ -306,11 +308,21 @@ func fetchAlbum(
 	return albumInfo, folderName, nil
 }
 
-func FetchAlbum(ctx context.Context, httpClient HttpDoClient, logger *slog.Logger, workPath, albumUrl string, noDownload, overwrite bool, trackNumberSet TrackNumberSet) (*AlbumInfo, string, error) {
+func FetchAlbum(
+	ctx context.Context,
+	httpClient HttpDoClient,
+	logger *slog.Logger,
+	workPath,
+	albumUrl string,
+	noDownloadImage,
+	noDownloadTrack,
+	overwrite bool,
+	trackNumberSet TrackNumberSet,
+) (*AlbumInfo, string, error) {
 	osCreate := func(name string) (io.WriteCloser, error) {
 		return os.Create(name) // covariance
 	}
-	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownload, overwrite, trackNumberSet)
+	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownloadImage, noDownloadTrack, overwrite, trackNumberSet)
 }
 
 type TrackNumberKey struct{ DiscNumber, TrackNumber string }

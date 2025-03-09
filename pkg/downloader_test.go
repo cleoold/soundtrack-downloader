@@ -67,7 +67,7 @@ func TestFetchAlbum(t *testing.T) {
 		client := stubClient{
 			".": {"GET": {http.StatusOK, "<div></div>"}},
 		}
-		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, nil)
+		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, false, nil)
 		if err == nil || !strings.Contains(err.Error(), "album name") {
 			t.Fatalf("expected error, got nil")
 		}
@@ -92,7 +92,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, true, nil)
+		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, true, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -171,7 +171,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, nil)
+		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -226,7 +226,7 @@ func TestFetchAlbum(t *testing.T) {
 		}
 	})
 
-	t.Run("happy path with download only downloads songs in the set", func(t *testing.T) {
+	t.Run("happy path only downloads songs in the set and does not download images", func(t *testing.T) {
 		client := stubClient{
 			"https://example.com/":                    {"GET": {http.StatusOK, home2}},
 			"https://example.com/1-01.%2520song1.mp3": {"GET": {http.StatusOK, song1CD}},
@@ -243,18 +243,17 @@ func TestFetchAlbum(t *testing.T) {
 		set := TrackNumberSet{}
 		set.Add(TrackNumberKey{"01", "002"})
 
-		_, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, true, set)
+		_, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", true, false, true, set)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
 		// Check the downloaded files
-		expFileCount := 4
+		expFileCount := 3
 		if len(mkFS) != expFileCount {
 			t.Fatalf("expected %d files to be created, got %d", expFileCount, len(mkFS))
 		}
 		expDownloadedFiles := map[string]string{
-			"My Album 2/Cover.jpg":        "content of cover",
 			"My Album 2/1-02. song2.flac": "content of song2",
 		}
 		for path, content := range expDownloadedFiles {

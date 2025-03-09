@@ -20,7 +20,7 @@ To download an album, first obtain its URL, then run:
 bin/downloader -url https://downloads.khinsider.com/game-soundtracks/album/<some-album>
 ```
 
-This will create a folder in the current directory with the album's name and download all the images and tracks in it. It also creates an `info.json` file describing the information of the album, as well as a Windows link file to the URL.
+This will create a folder in the current directory with the album's name and download all the images and tracks in it. It also creates an `info.json` file describing the information of the album ([schema](./pkg/album_info.go)), as well as a Windows link file to the URL.
 
 At times the downloaded tracks may not have all the metadata so won't display properly in some music players (e.g. Jellyfin). To download while also fixing the metadata using available information, `-fix-tags` can be used:
 
@@ -51,7 +51,11 @@ Usage of bin/downloader:
   -fix-tags
         Fix tags of the downloaded files. Default: false
   -no-download
-        Don't download the files. Default: false
+        Combine no-download-image and no-download-track. Default: false
+  -no-download-image
+        Don't download images. Default: false
+  -no-download-track
+        Don't download tracks. Default: false
   -overwrite
         Redownload existing files. This option does not affect generation of info.json and link. Default: false
   -track value
