@@ -69,7 +69,7 @@ Usage of bin/meta:
   -folder string
         Folder to fix tags
   -infer-names
-        Infer names from file names. Default: true (default true)
+        Infer track names from file names. Default: false
   -no-fix
         Only print the proposed changes but don't fix tags. Default: false
   -overwrite

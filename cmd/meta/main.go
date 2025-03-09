@@ -30,7 +30,7 @@ func main() {
 	folderFlag := flag.String("folder", "", "Folder to fix tags")
 	tags := tagFlags{}
 	flag.Var(&tags, "tag", "Tag to set. Format: key=value. Multiple are supported. Available keys include 'ALBUM', 'DATE', 'ALBUMARTIST', 'ARTIST', 'GENRE' and so on. See https://taglib.org/api/p_propertymapping.html for more.")
-	inferNamesFlag := flag.Bool("infer-names", true, "Infer names from file names. Default: true")
+	inferNamesFlag := flag.Bool("infer-names", false, "Infer track names from file names. Default: false")
 	overwriteFlag := flag.Bool("overwrite", false, "Overwrite existing tags. Default: false")
 	readAlbumInfoFlag := flag.Bool("read-album-info", false, "Read album info from info.json. Default: false")
 	noFixFlag := flag.Bool("no-fix", false, "Only print the proposed changes but don't fix tags. Default: false")
