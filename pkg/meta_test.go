@@ -260,6 +260,21 @@ func TestAlbumInfoToTags(t *testing.T) {
 			info:     AlbumInfo{},
 			expected: map[string]string{},
 		},
+		{
+			name: "happy path set publisher as artist when developer is empty",
+			info: AlbumInfo{
+				Name:      "MyAlbum",
+				Year:      "2021",
+				Publisher: "MyPub",
+			},
+			expected: map[string]string{
+				taglib.Album:       "MyAlbum",
+				taglib.Date:        "2021",
+				taglib.Artist:      "MyPub",
+				taglib.AlbumArtist: "MyPub",
+				"PUBLISHER":        "MyPub",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
