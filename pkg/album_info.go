@@ -14,6 +14,9 @@ type AlbumInfo struct {
 }
 
 type TrackInfo struct {
-	PageUrl string
-	SongUrl string
+	Name        string
+	DiscNumber  string `json:",omitzero"`
+	TrackNumber string
+	PageUrl     string
+	SongUrl     string
 }

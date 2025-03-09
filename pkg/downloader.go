@@ -117,13 +117,31 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 		}
 	})
 
+	CDIndex := doc.Find("#pageContent #songlist_header th:contains('CD')").Index()
+	TrackIndex := doc.Find("#pageContent #songlist_header th:contains('#')").Index()
+	NameIndex := doc.Find("#pageContent #songlist_header th:contains('Name')").Index()
+
 	// Get links to tracks
-	doc.Find("#pageContent .playlistDownloadSong a").Each(func(i int, s *goquery.Selection) {
-		pageUrl, ok := s.Attr("href")
-		if ok {
-			pageUrl, _ = joinUrl(albumUrl, pageUrl)
-			result.Tracks = append(result.Tracks, TrackInfo{PageUrl: pageUrl})
-		}
+	doc.Find("#pageContent #songlist tr:not(#songlist_header):not(#songlist_footer)").Each(func(i int, s *goquery.Selection) {
+		trackInfo := TrackInfo{}
+		s.Find("td").Each(func(j int, s *goquery.Selection) {
+			switch j {
+			case CDIndex:
+				trackInfo.DiscNumber = strings.Trim(strings.TrimSpace(s.Text()), ".")
+			case TrackIndex:
+				trackInfo.TrackNumber = strings.Trim(strings.TrimSpace(s.Text()), ".")
+			case NameIndex:
+				trackInfo.Name = strings.TrimSpace(s.Text())
+			}
+		})
+		s.Find("td a").Each(func(j int, s *goquery.Selection) {
+			pageUrl, ok := s.Attr("href")
+			if ok {
+				pageUrl, _ = joinUrl(albumUrl, pageUrl)
+				trackInfo.PageUrl = pageUrl
+			}
+		})
+		result.Tracks = append(result.Tracks, trackInfo)
 	})
 
 	return &result, nil
