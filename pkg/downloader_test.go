@@ -176,14 +176,14 @@ func TestFetchAlbum(t *testing.T) {
 		}
 
 		expAlbumInfo := AlbumInfo{
-			Url:       "https://example.com/",
-			Name:      "My Album 2",
-			Platforms: "MacOS; Windows",
-			Year:      "2002",
-			Developer: "My Studio; Other Studio",
-			Publisher: "My Publisher",
-			AlbumType: "Soundtrack",
-			ImageUrls: []string{"https://download.com/Cover.jpg"},
+			Url:           "https://example.com/",
+			Name:          "My Album 2",
+			Platforms:     "MacOS; Windows",
+			Year:          "2002",
+			CatalogNumber: "ABC-2061~3",
+			Publisher:     "My Publisher",
+			AlbumType:     "Arrangement",
+			ImageUrls:     []string{"https://download.com/Cover.jpg"},
 			Tracks: []TrackInfo{
 				TrackInfo{
 					Name:        "song1",

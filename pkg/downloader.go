@@ -62,6 +62,7 @@ var (
 	yearRegex      = regexp.MustCompile(`Year:\s*(\d+)`)
 	developerRegex = regexp.MustCompile(`(?m)Developed by:\s*(.+?)\s*$`)
 	publisherRegex = regexp.MustCompile(`(?m)Published by:\s*(.+?)\s*$`)
+	catalogRegex   = regexp.MustCompile(`(?m)Catalog Number:\s*(.+?)\s*$`)
 	albumTypeRegex = regexp.MustCompile(`(?m)Album type:\s*(.+?)\s*$`)
 )
 
@@ -99,6 +100,9 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 		}
 		if match := publisherRegex.FindStringSubmatch(text); len(match) > 1 {
 			result.Publisher = strings.ReplaceAll(match[1], ", ", "; ")
+		}
+		if match := catalogRegex.FindStringSubmatch(text); len(match) > 1 {
+			result.CatalogNumber = match[1]
 		}
 		if match := albumTypeRegex.FindStringSubmatch(text); len(match) > 1 {
 			result.AlbumType = strings.ReplaceAll(match[1], ", ", "; ")
