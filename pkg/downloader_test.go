@@ -67,7 +67,7 @@ func TestFetchAlbum(t *testing.T) {
 		client := stubClient{
 			".": {"GET": {http.StatusOK, "<div></div>"}},
 		}
-		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false)
+		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, nil)
 		if err == nil || !strings.Contains(err.Error(), "album name") {
 			t.Fatalf("expected error, got nil")
 		}
@@ -92,7 +92,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, true)
+		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, true, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -149,9 +149,10 @@ func TestFetchAlbum(t *testing.T) {
 		}
 	})
 
+	// Add CD number
+	song1CD := strings.ReplaceAll(song1, "01.%20song1", "1-01.%20song1")
+
 	t.Run("happy path with download skips existing image and fails to download a track", func(t *testing.T) {
-		// Add CD number
-		song1CD := strings.ReplaceAll(song1, "01.%20song1", "1-01.%20song1")
 		client := stubClient{
 			"https://example.com/":                    {"GET": {http.StatusOK, home2}},
 			"https://example.com/1-01.%2520song1.mp3": {"GET": {http.StatusOK, song1CD}},
@@ -170,7 +171,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false)
+		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -210,6 +211,50 @@ func TestFetchAlbum(t *testing.T) {
 			t.Fatalf("expected %d files to be created, got %d", expFileCount, len(mkFS))
 		}
 		expDownloadedFiles := map[string]string{
+			"My Album 2/1-02. song2.flac": "content of song2",
+		}
+		for path, content := range expDownloadedFiles {
+			if mkFS[path] != content {
+				t.Fatalf("expected %s to have content %s, got %s", path, content, mkFS[path])
+			}
+		}
+
+		for _, fn := range []string{"My Album 2/info.json", "My Album 2/page.url"} {
+			if !strings.Contains(mkFS[fn], "https://example.com/") {
+				t.Fatalf("expected %s to be created", fn)
+			}
+		}
+	})
+
+	t.Run("happy path with download only downloads songs in the set", func(t *testing.T) {
+		client := stubClient{
+			"https://example.com/":                    {"GET": {http.StatusOK, home2}},
+			"https://example.com/1-01.%2520song1.mp3": {"GET": {http.StatusOK, song1CD}},
+			"https://example.com/1-01.%2520song2.mp3": {"GET": {http.StatusOK, strings.ReplaceAll(strings.ReplaceAll(song1CD, "song1", "song2"), "01", "02")}},
+			"https://download.com/Cover.jpg":          {"GET": {http.StatusOK, "content of cover"}},
+			"https://download.com/1-01.%20song1.flac": {"GET": {http.StatusOK, "content of song1"}},
+			"https://download.com/1-02.%20song2.flac": {"GET": {http.StatusOK, "content of song2"}},
+		}
+
+		mkMkdirAll := func(path string, perm os.FileMode) error { return nil }
+		mkFS := FSRecorder{}
+		mkStat := func(name string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+
+		set := TrackNumberSet{}
+		set.Add(TrackNumberKey{"01", "002"})
+
+		_, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, true, set)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Check the downloaded files
+		expFileCount := 4
+		if len(mkFS) != expFileCount {
+			t.Fatalf("expected %d files to be created, got %d", expFileCount, len(mkFS))
+		}
+		expDownloadedFiles := map[string]string{
+			"My Album 2/Cover.jpg":        "content of cover",
 			"My Album 2/1-02. song2.flac": "content of song2",
 		}
 		for path, content := range expDownloadedFiles {

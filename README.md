@@ -54,6 +54,8 @@ Usage of bin/downloader:
         Don't download the files. Default: false
   -overwrite
         Redownload existing files. This option does not affect generation of info.json and link. Default: false
+  -track value
+        Tracks to download. Format: [disc number-]track number. Example: 1-1,1-2. Default to all tracks.
   -url string
         URL to download
 

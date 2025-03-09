@@ -197,6 +197,7 @@ func fetchAlbum(
 	albumUrl string,
 	noDownload bool,
 	overwrite bool,
+	trackNumberSet TrackNumberSet,
 ) (*AlbumInfo, string, error) {
 	logger.Info("fetching from " + albumUrl)
 	albumInfo, err := FetchAlbumInfo(ctx, httpClient, albumUrl)
@@ -262,6 +263,10 @@ func fetchAlbum(
 
 	for i := range albumInfo.Tracks {
 		t := &albumInfo.Tracks[i]
+		if !trackNumberSet.Contains(t) {
+			slog.Debug("skipping track " + t.Name)
+			continue
+		}
 		trackUrl, err := FetchTrackDownloadUrl(ctx, httpClient, t.PageUrl)
 		if err != nil {
 			slog.Error("failed to fetch track download url: " + err.Error())
@@ -301,9 +306,29 @@ func fetchAlbum(
 	return albumInfo, folderName, nil
 }
 
-func FetchAlbum(ctx context.Context, httpClient HttpDoClient, logger *slog.Logger, workPath, albumUrl string, noDownload, overwrite bool) (*AlbumInfo, string, error) {
+func FetchAlbum(ctx context.Context, httpClient HttpDoClient, logger *slog.Logger, workPath, albumUrl string, noDownload, overwrite bool, trackNumberSet TrackNumberSet) (*AlbumInfo, string, error) {
 	osCreate := func(name string) (io.WriteCloser, error) {
 		return os.Create(name) // covariance
 	}
-	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownload, overwrite)
+	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownload, overwrite, trackNumberSet)
+}
+
+type TrackNumberKey struct{ DiscNumber, TrackNumber string }
+type TrackNumberSet map[TrackNumberKey]struct{}
+
+// A nil set contains everything
+func (s TrackNumberSet) Contains(info *TrackInfo) bool {
+	if s == nil {
+		return true
+	}
+	disc := strings.TrimLeft(info.DiscNumber, "0")
+	track := strings.TrimLeft(info.TrackNumber, "0")
+	_, ok := s[TrackNumberKey{disc, track}]
+	return ok
+}
+
+func (s TrackNumberSet) Add(key TrackNumberKey) {
+	disc := strings.TrimLeft(key.DiscNumber, "0")
+	track := strings.TrimLeft(key.TrackNumber, "0")
+	s[TrackNumberKey{disc, track}] = struct{}{}
 }
