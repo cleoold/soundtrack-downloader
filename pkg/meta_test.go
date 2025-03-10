@@ -74,7 +74,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, "My Album", true, false, true, false)
+		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, NoOverWriteTags, "My Album", true, true, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -135,7 +135,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, "My Album", true, false, false, false)
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, NoOverWriteTags, "My Album", true, false, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -155,7 +155,7 @@ func TestFixTags(t *testing.T) {
 		}
 	})
 
-	t.Run("happy path uses inferred names to overwrites existing tags", func(t *testing.T) {
+	t.Run("happy path uses inferred names to overwrite existing tags", func(t *testing.T) {
 		mkOsReadDir := func(name string) ([]os.DirEntry, error) {
 			if name != "My Album" {
 				t.Fatalf("expected to read My Album, got %s", name)
@@ -189,7 +189,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, nil, nil, "My Album", true, true, false, false)
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, nil, nil, OverwriteAllTags, "My Album", true, false, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -262,7 +262,7 @@ func TestFixTags(t *testing.T) {
 			records[path] = tags
 			return nil
 		}
-		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedTags, providedFileTags, "My Album", false, true, true, false)
+		err := fixTags(logger, mkOpen, mkOsReadDir, mkReadTags, mkWriteTags, providedTags, providedFileTags, OverwriteAllTags, "My Album", false, true, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -309,7 +309,7 @@ func TestFixTags(t *testing.T) {
 			t.Fatalf("unexpected write to %s", path)
 			return nil
 		}
-		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, "My Album", true, true, false, true)
+		err := fixTags(logger, nil, mkOsReadDir, mkReadTags, mkWriteTags, providedtags, nil, OverwriteAllTags, "My Album", true, false, true)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}
@@ -420,4 +420,32 @@ func TestAlbumInfoToFileTags(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTagKeySet(t *testing.T) {
+	t.Run("Empty set", func(t *testing.T) {
+		s := TagKeySet{}
+		if k := "anything"; s.Contains(k) {
+			t.Fatalf("expected set to not contain %s", k)
+		}
+	})
+
+	t.Run("Contains all", func(t *testing.T) {
+		s := TagKeySet{}
+		s.Add("*")
+		if k := "anything"; !s.Contains(k) {
+			t.Fatalf("expected set to contain %s", k)
+		}
+	})
+
+	t.Run("Contains specific", func(t *testing.T) {
+		s := TagKeySet{}
+		s.Add("album")
+		if k := "ALBUM"; !s.Contains(k) {
+			t.Fatalf("expected set to contain %s", k)
+		}
+		if k := "ARTIST"; s.Contains(k) {
+			t.Fatalf("expected set to not contain %s", k)
+		}
+	})
 }

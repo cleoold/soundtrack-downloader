@@ -61,7 +61,7 @@ Usage of bin/downloader:
   -overwrite
         Redownload existing files. This option does not affect generation of info.json and link. Default: false
   -track value
-        Tracks to download. Format: [disc number-]track number. Example: 1-1,1-2. Default to all tracks.
+        Tracks to download. Format: [disc number-]track number. Example: -track 1-1,1-2. Special value '*' means all tracks. Default to all tracks.
   -url string
         URL to download
 
@@ -72,10 +72,10 @@ Usage of bin/meta:
         Infer track names from file names. Default: false
   -no-fix
         Only print the proposed changes but don't fix tags. Default: false
-  -overwrite
-        Overwrite existing tags. Default: false
+  -overwrite value
+        Overwrite existing tags by their key names (example: -overwrite ALBUM,ARTIST,TRACKNUMBER). Special value '*' means to overwrite all tags. Default: none
   -read-album-info
         Read album info from info.json. Default: false
   -tag value
-        Tag to set. Format: key=value. Multiple are supported. Available keys include 'ALBUM', 'DATE', 'ALBUMARTIST', 'ARTIST', 'GENRE' and so on. See https://taglib.org/api/p_propertymapping.html for more.
+        Tag to set. Format: -tag key=value. Multiple are supported. Available keys include 'ALBUM', 'DATE', 'ALBUMARTIST', 'ARTIST', 'GENRE' and so on. See https://taglib.org/api/p_propertymapping.html for more. If provided, this option has higher precedence than ones scanned by -read-album-info.
 ```

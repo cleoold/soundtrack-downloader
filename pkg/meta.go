@@ -46,10 +46,10 @@ func fixTags(
 	taglibWriteTags func(path string, tags map[string][]string, opts taglib.WriteOption) error,
 	tags map[string]string,
 	fileSpecificTags map[string]map[string]string,
+	overwrites TagKeySet,
 	workpath string,
-	inferNames,
-	overwrite,
-	readAlbumInfo,
+	inferNames bool,
+	readAlbumInfo bool,
 	noFix bool,
 ) error {
 	// Precedence: supplied file-specific tags
@@ -111,8 +111,8 @@ func fixTags(
 			continue
 		}
 		logger.Debug(fmt.Sprintf("existing tags for %s: %+v", dirEntry.Name(), existingTags))
-		if !overwrite {
-			for k := range existingTags {
+		for k := range existingTags {
+			if !overwrites.Contains(k) {
 				delete(actualTags, k)
 			}
 		}
@@ -145,17 +145,22 @@ func FixTags(
 	logger *slog.Logger,
 	tags map[string]string,
 	fileSpecificTags map[string]map[string]string,
+	overwrites TagKeySet,
 	workpath string,
-	inferNames,
-	overwrite,
-	readAlbumInfo,
+	inferNames bool,
+	readAlbumInfo bool,
 	noFix bool,
 ) error {
 	osOpen := func(name string) (io.ReadCloser, error) {
 		return os.Open(name) // covariance
 	}
-	return fixTags(logger, osOpen, os.ReadDir, taglib.ReadTags, taglib.WriteTags, tags, fileSpecificTags, workpath, inferNames, overwrite, readAlbumInfo, noFix)
+	return fixTags(logger, osOpen, os.ReadDir, taglib.ReadTags, taglib.WriteTags, tags, fileSpecificTags, overwrites, workpath, inferNames, readAlbumInfo, noFix)
 }
+
+var (
+	NoOverWriteTags  = TagKeySet{}
+	OverwriteAllTags = TagKeySet{"*": {}}
+)
 
 func AlbumInfoToTags(albumInfo *AlbumInfo) map[string]string {
 	tags := map[string]string{}
@@ -203,4 +208,18 @@ func AlbumInfoToFileTags(albumInfo *AlbumInfo) map[string]map[string]string {
 		res[fileName] = tags
 	}
 	return res
+}
+
+type TagKeySet map[string]struct{}
+
+func (s TagKeySet) Contains(v string) bool {
+	if _, ok := s["*"]; ok {
+		return true
+	}
+	_, ok := s[strings.ToUpper(v)]
+	return ok
+}
+
+func (s TagKeySet) Add(v string) {
+	s[strings.ToUpper(v)] = struct{}{}
 }

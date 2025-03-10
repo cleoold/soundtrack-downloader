@@ -67,7 +67,7 @@ func TestFetchAlbum(t *testing.T) {
 		client := stubClient{
 			".": {"GET": {http.StatusOK, "<div></div>"}},
 		}
-		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, false, nil)
+		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, false, DownloadAllTracks)
 		if err == nil || !strings.Contains(err.Error(), "album name") {
 			t.Fatalf("expected error, got nil")
 		}
@@ -92,7 +92,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, true, nil)
+		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, true, DownloadAllTracks)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -171,7 +171,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, nil)
+		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, DownloadAllTracks)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -266,6 +266,51 @@ func TestFetchAlbum(t *testing.T) {
 			if !strings.Contains(mkFS[fn], "https://example.com/") {
 				t.Fatalf("expected %s to be created", fn)
 			}
+		}
+	})
+}
+
+func TestTrackNumberSet(t *testing.T) {
+	t.Run("Empty set", func(t *testing.T) {
+		s := TrackNumberSet{}
+		if k := (&TrackInfo{DiscNumber: "1", TrackNumber: "1"}); s.Contains(k) {
+			t.Fatalf("expected set to be empty")
+		}
+	})
+
+	t.Run("wildcard-wildcard", func(t *testing.T) {
+		s := TrackNumberSet{}
+		s.Add(TrackNumberKey{"*", "*"})
+		if k := (&TrackInfo{DiscNumber: "1", TrackNumber: "1"}); !s.Contains(k) {
+			t.Fatalf("expected set to contain %v", k)
+		}
+	})
+
+	t.Run("disc-wildcard", func(t *testing.T) {
+		s := TrackNumberSet{}
+		s.Add(TrackNumberKey{"01", "*"})
+		if k := (&TrackInfo{DiscNumber: "1", TrackNumber: "1"}); !s.Contains(k) {
+			t.Fatalf("expected set to contain %v", k)
+		}
+	})
+
+	t.Run("wildcard-track", func(t *testing.T) {
+		s := TrackNumberSet{}
+		s.Add(TrackNumberKey{"*", "1"})
+		if k := (&TrackInfo{DiscNumber: "1", TrackNumber: "01"}); !s.Contains(k) {
+			t.Fatalf("expected set to contain %v", k)
+		}
+	})
+
+	t.Run("disc-track", func(t *testing.T) {
+		s := TrackNumberSet{}
+		s.Add(TrackNumberKey{"1", "1"})
+		s.Add(TrackNumberKey{"1", "3"})
+		if k := (&TrackInfo{DiscNumber: "01", TrackNumber: "01"}); !s.Contains(k) {
+			t.Fatalf("expected set to contain %v", k)
+		}
+		if k := (&TrackInfo{DiscNumber: "1", TrackNumber: "2"}); s.Contains(k) {
+			t.Fatalf("expected set to not contain %v", k)
 		}
 	})
 }

@@ -47,7 +47,7 @@ func main() {
 	fixTags := flag.Bool("fix-tags", false, "Fix tags of the downloaded files. Default: false")
 	overwriteFlag := flag.Bool("overwrite", false, "Redownload existing files. This option does not affect generation of info.json and link. Default: false")
 	trackFlag := trackFlags{}
-	flag.Var(&trackFlag, "track", "Tracks to download. Format: [disc number-]track number. Example: 1-1,1-2. Default to all tracks.")
+	flag.Var(&trackFlag, "track", "Tracks to download. Format: [disc number-]track number. Example: -track 1-1,1-2. Special value '*' means all tracks. Default to all tracks.")
 	flag.Parse()
 	if *urlFlag == "" {
 		flag.Usage()
@@ -65,7 +65,7 @@ func main() {
 		logger.Warn("specifying overwrite while no-download is set has no effect")
 	}
 	if len(trackFlag) == 0 {
-		trackFlag = nil
+		trackFlag = trackFlags(pkg.DownloadAllTracks)
 	} else if *noDownloadTrackFlag {
 		logger.Warn("specifying track while no-download-track is set has no effect")
 	}
@@ -77,7 +77,7 @@ func main() {
 	}
 	if *fixTags {
 		logger.Info("fixing tags")
-		err := pkg.FixTags(logger, pkg.AlbumInfoToTags(info), pkg.AlbumInfoToFileTags(info), folder, false, false, false, false)
+		err := pkg.FixTags(logger, pkg.AlbumInfoToTags(info), pkg.AlbumInfoToFileTags(info), nil, folder, false, false, false)
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)

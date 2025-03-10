@@ -325,16 +325,21 @@ func FetchAlbum(
 	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownloadImage, noDownloadTrack, overwrite, trackNumberSet)
 }
 
+var DownloadAllTracks = TrackNumberSet{TrackNumberKey{"*", "*"}: {}}
+
 type TrackNumberKey struct{ DiscNumber, TrackNumber string }
 type TrackNumberSet map[TrackNumberKey]struct{}
 
-// A nil set contains everything
 func (s TrackNumberSet) Contains(info *TrackInfo) bool {
-	if s == nil {
-		return true
-	}
 	disc := strings.TrimLeft(info.DiscNumber, "0")
 	track := strings.TrimLeft(info.TrackNumber, "0")
+	if _, ok := s[TrackNumberKey{"*", "*"}]; ok {
+		return true
+	} else if _, ok := s[TrackNumberKey{disc, "*"}]; ok {
+		return true
+	} else if _, ok := s[TrackNumberKey{"*", track}]; ok {
+		return true
+	}
 	_, ok := s[TrackNumberKey{disc, track}]
 	return ok
 }
