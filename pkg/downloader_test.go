@@ -67,7 +67,7 @@ func TestFetchAlbum(t *testing.T) {
 		client := stubClient{
 			".": {"GET": {http.StatusOK, "<div></div>"}},
 		}
-		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, false, DownloadAllTracks)
+		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, false, false, false, DownloadAllTracks)
 		if err == nil || !strings.Contains(err.Error(), "album name") {
 			t.Fatalf("expected error, got nil")
 		}
@@ -92,7 +92,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, true, DownloadAllTracks)
+		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, false, true, DownloadAllTracks)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -109,13 +109,13 @@ func TestFetchAlbum(t *testing.T) {
 			AlbumType: "Soundtrack",
 			ImageUrls: []string{"https://download.com/Cover.jpg"},
 			Tracks: []TrackInfo{
-				TrackInfo{
+				{
 					Name:        "song1",
 					TrackNumber: "1",
 					PageUrl:     "https://example.com/01.%2520song1.mp3",
 					SongUrl:     "https://download.com/01.%20song1.flac",
 				},
-				TrackInfo{
+				{
 					Name:        "song2",
 					TrackNumber: "2",
 					PageUrl:     "https://example.com/01.%2520song2.mp3",
@@ -152,7 +152,7 @@ func TestFetchAlbum(t *testing.T) {
 	// Add CD number
 	song1CD := strings.ReplaceAll(song1, "01.%20song1", "1-01.%20song1")
 
-	t.Run("happy path with download skips existing image and fails to download a track", func(t *testing.T) {
+	t.Run("happy path with download skips existing image, fails to download a track and skips link file", func(t *testing.T) {
 		client := stubClient{
 			"https://example.com/":                    {"GET": {http.StatusOK, home2}},
 			"https://example.com/1-01.%2520song1.mp3": {"GET": {http.StatusOK, song1CD}},
@@ -171,7 +171,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, DownloadAllTracks)
+		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, true, false, DownloadAllTracks)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -186,14 +186,14 @@ func TestFetchAlbum(t *testing.T) {
 			AlbumType:     "Arrangement",
 			ImageUrls:     []string{"https://download.com/Cover.jpg"},
 			Tracks: []TrackInfo{
-				TrackInfo{
+				{
 					Name:        "song1",
 					DiscNumber:  "1",
 					TrackNumber: "1",
 					PageUrl:     "https://example.com/1-01.%2520song1.mp3",
 					SongUrl:     "https://download.com/1-01.%20song1.flac",
 				},
-				TrackInfo{
+				{
 					Name:        "song2",
 					DiscNumber:  "1",
 					TrackNumber: "2",
@@ -206,8 +206,7 @@ func TestFetchAlbum(t *testing.T) {
 		}
 
 		// Check the downloaded files
-		expFileCount := 3
-		if len(mkFS) != expFileCount {
+		if expFileCount := 2; len(mkFS) != expFileCount {
 			t.Fatalf("expected %d files to be created, got %d", expFileCount, len(mkFS))
 		}
 		expDownloadedFiles := map[string]string{
@@ -219,14 +218,14 @@ func TestFetchAlbum(t *testing.T) {
 			}
 		}
 
-		for _, fn := range []string{"My Album 2/info.json", "My Album 2/page.url"} {
+		for _, fn := range []string{"My Album 2/info.json"} {
 			if !strings.Contains(mkFS[fn], "https://example.com/") {
 				t.Fatalf("expected %s to be created", fn)
 			}
 		}
 	})
 
-	t.Run("happy path only downloads songs in the set and does not download images", func(t *testing.T) {
+	t.Run("happy path only downloads songs in the set, does not download images and does not create info or link", func(t *testing.T) {
 		client := stubClient{
 			"https://example.com/":                    {"GET": {http.StatusOK, home2}},
 			"https://example.com/1-01.%2520song1.mp3": {"GET": {http.StatusOK, song1CD}},
@@ -243,14 +242,13 @@ func TestFetchAlbum(t *testing.T) {
 		set := TrackNumberSet{}
 		set.Add(TrackNumberKey{"01", "002"})
 
-		_, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", true, false, true, set)
+		_, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", true, false, true, true, true, set)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
 		// Check the downloaded files
-		expFileCount := 3
-		if len(mkFS) != expFileCount {
+		if expFileCount := 1; len(mkFS) != expFileCount {
 			t.Fatalf("expected %d files to be created, got %d", expFileCount, len(mkFS))
 		}
 		expDownloadedFiles := map[string]string{
@@ -259,12 +257,6 @@ func TestFetchAlbum(t *testing.T) {
 		for path, content := range expDownloadedFiles {
 			if mkFS[path] != content {
 				t.Fatalf("expected %s to have content %s, got %s", path, content, mkFS[path])
-			}
-		}
-
-		for _, fn := range []string{"My Album 2/info.json", "My Album 2/page.url"} {
-			if !strings.Contains(mkFS[fn], "https://example.com/") {
-				t.Fatalf("expected %s to be created", fn)
 			}
 		}
 	})

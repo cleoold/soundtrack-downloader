@@ -197,6 +197,8 @@ func fetchAlbum(
 	albumUrl string,
 	noDownloadImage,
 	noDownloadTrack,
+	noCreateInfo,
+	noCreateShortcut,
 	overwrite bool,
 	trackNumberSet TrackNumberSet,
 ) (*AlbumInfo, string, error) {
@@ -281,28 +283,30 @@ func fetchAlbum(
 		}
 	}
 
-	// Write summary
-	logger.Info("writing summary")
-	if summaryFile, err := osCreate(path.Join(folderName, "info.json")); err != nil {
-		slog.Error("failed to create summary file: " + err.Error())
-	} else {
-		defer summaryFile.Close()
-		encoder := json.NewEncoder(summaryFile)
-		encoder.SetIndent("", "  ")
-		encoder.Encode(albumInfo)
+	if !noCreateInfo {
+		logger.Info("writing album info")
+		if summaryFile, err := osCreate(path.Join(folderName, "info.json")); err != nil {
+			slog.Error("failed to create album info file: " + err.Error())
+		} else {
+			defer summaryFile.Close()
+			encoder := json.NewEncoder(summaryFile)
+			encoder.SetIndent("", "  ")
+			encoder.Encode(albumInfo)
+		}
 	}
 
-	// Write a Windows shortcut file
-	logger.Info("writing shortcut file")
-	if lnkFile, err := osCreate(path.Join(folderName, "page.url")); err != nil {
-		slog.Error("failed to create lnk file: " + err.Error())
-	} else {
-		defer lnkFile.Close()
-		lnkFile.Write([]byte("[{000214A0-0000-0000-C000-000000000046}]\r\n"))
-		lnkFile.Write([]byte("Prop3=19,11\r\n"))
-		lnkFile.Write([]byte("[InternetShortcut]\r\n"))
-		lnkFile.Write([]byte("IDList=\r\n"))
-		lnkFile.Write([]byte("URL=" + albumUrl + "\r\n"))
+	if !noCreateShortcut {
+		logger.Info("writing shortcut file")
+		if lnkFile, err := osCreate(path.Join(folderName, "page.url")); err != nil {
+			slog.Error("failed to create lnk file: " + err.Error())
+		} else {
+			defer lnkFile.Close()
+			lnkFile.Write([]byte("[{000214A0-0000-0000-C000-000000000046}]\r\n"))
+			lnkFile.Write([]byte("Prop3=19,11\r\n"))
+			lnkFile.Write([]byte("[InternetShortcut]\r\n"))
+			lnkFile.Write([]byte("IDList=\r\n"))
+			lnkFile.Write([]byte("URL=" + albumUrl + "\r\n"))
+		}
 	}
 
 	return albumInfo, folderName, nil
@@ -316,13 +320,15 @@ func FetchAlbum(
 	albumUrl string,
 	noDownloadImage,
 	noDownloadTrack,
+	noCreateInfo,
+	noCreateShortcut,
 	overwrite bool,
 	trackNumberSet TrackNumberSet,
 ) (*AlbumInfo, string, error) {
 	osCreate := func(name string) (io.WriteCloser, error) {
 		return os.Create(name) // covariance
 	}
-	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownloadImage, noDownloadTrack, overwrite, trackNumberSet)
+	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownloadImage, noDownloadTrack, noCreateInfo, noCreateShortcut, overwrite, trackNumberSet)
 }
 
 var DownloadAllTracks = TrackNumberSet{TrackNumberKey{"*", "*"}: {}}

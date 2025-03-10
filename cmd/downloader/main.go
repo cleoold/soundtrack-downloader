@@ -44,6 +44,8 @@ func main() {
 	noDownloadImageFlag := flag.Bool("no-download-image", false, "Don't download images. Default: false")
 	noDownloadTrackFlag := flag.Bool("no-download-track", false, "Don't download tracks. Default: false")
 	noDownloadFlag := flag.Bool("no-download", false, "Combine no-download-image and no-download-track. Default: false")
+	noCreateAlbumInfoFlag := flag.Bool("no-create-album-info", false, "Don't create info.json. Default: false")
+	noCreateWindowsShortcutFlag := flag.Bool("no-create-windows-shortcut", false, "Don't create Windows shortcut. Default: false")
 	fixTags := flag.Bool("fix-tags", false, "Fix tags of the downloaded files. Default: false")
 	overwriteFlag := flag.Bool("overwrite", false, "Redownload existing files. This option does not affect generation of info.json and link. Default: false")
 	trackFlag := trackFlags{}
@@ -64,13 +66,16 @@ func main() {
 	if *noDownloadFlag && *overwriteFlag {
 		logger.Warn("specifying overwrite while no-download is set has no effect")
 	}
+	if *noDownloadFlag && *noCreateAlbumInfoFlag {
+		logger.Warn("specifying both no-download and no-create-album-info results in nothing meaningful to do!")
+	}
 	if len(trackFlag) == 0 {
 		trackFlag = trackFlags(pkg.DownloadAllTracks)
 	} else if *noDownloadTrackFlag {
 		logger.Warn("specifying track while no-download-track is set has no effect")
 	}
 
-	info, folder, err := pkg.FetchAlbum(context.Background(), http.DefaultClient, logger, ".", *urlFlag, *noDownloadImageFlag, *noDownloadTrackFlag, *overwriteFlag, pkg.TrackNumberSet(trackFlag))
+	info, folder, err := pkg.FetchAlbum(context.Background(), http.DefaultClient, logger, ".", *urlFlag, *noDownloadImageFlag, *noDownloadTrackFlag, *noCreateAlbumInfoFlag, *noCreateWindowsShortcutFlag, *overwriteFlag, pkg.TrackNumberSet(trackFlag))
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)

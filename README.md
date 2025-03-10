@@ -52,6 +52,10 @@ The utility provides many flags to customize its behavior.
 Usage of bin/downloader:
   -fix-tags
         Fix tags of the downloaded files. Default: false
+  -no-create-album-info
+        Don't create info.json. Default: false
+  -no-create-windows-shortcut
+        Don't create Windows shortcut. Default: false
   -no-download
         Combine no-download-image and no-download-track. Default: false
   -no-download-image
