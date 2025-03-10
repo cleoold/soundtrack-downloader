@@ -213,18 +213,20 @@ func fetchAlbum(
 	if err != nil {
 		return nil, "", err
 	}
+	folderName := path.Join(workPath, sanitizeFilename(albumInfo.Name))
+
 	logger.Info(
 		"fetched info",
 		"name", albumInfo.Name,
 		"year", albumInfo.Year,
 		"developer", albumInfo.Developer,
 		"publisher", albumInfo.Publisher,
+		"catalogNumber", albumInfo.CatalogNumber,
 		"albumType", albumInfo.AlbumType,
 		"images", len(albumInfo.Images),
 		"tracks", len(albumInfo.Tracks),
+		"folder", folderName,
 	)
-
-	folderName := path.Join(workPath, sanitizeFilename(albumInfo.Name))
 
 	err = osMkdirAll(folderName, os.ModePerm)
 	if err != nil {
