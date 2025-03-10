@@ -66,6 +66,8 @@ Usage of bin/downloader:
         Redownload existing files. This option does not affect generation of info.json and link. Default: false
   -track value
         Tracks to download. Format: [disc number-]track number. Example: -track 1-1,1-2. Special value '*' means all tracks. Default to all tracks.
+  -track-format-preference value
+        File format preference. If available, files with types in the left of this list will be downloaded. Default to 'FLAC,MP3,OGG,*'
   -url string
         URL to download
 

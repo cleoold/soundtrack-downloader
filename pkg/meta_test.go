@@ -431,16 +431,16 @@ func TestAlbumInfoToFileTags(t *testing.T) {
 	}
 }
 
-func TestTagKeySet(t *testing.T) {
+func TestInsStringKeySet(t *testing.T) {
 	t.Run("Empty set", func(t *testing.T) {
-		s := TagKeySet{}
+		s := InsStringKeySet{}
 		if k := "anything"; s.Contains(k) {
 			t.Fatalf("expected set to not contain %s", k)
 		}
 	})
 
 	t.Run("Contains all", func(t *testing.T) {
-		s := TagKeySet{}
+		s := InsStringKeySet{}
 		s.Add("*")
 		if k := "anything"; !s.Contains(k) {
 			t.Fatalf("expected set to contain %s", k)
@@ -448,7 +448,7 @@ func TestTagKeySet(t *testing.T) {
 	})
 
 	t.Run("Contains specific", func(t *testing.T) {
-		s := TagKeySet{}
+		s := InsStringKeySet{}
 		s.Add("album")
 		if k := "ALBUM"; !s.Contains(k) {
 			t.Fatalf("expected set to contain %s", k)

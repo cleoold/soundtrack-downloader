@@ -38,6 +38,8 @@ func inferTagsFromFileName(fileName string) map[string]string {
 	return res
 }
 
+var musicExts = InsStringKeySet{"FLAC": {}, "MP3": {}, "MPC": {}, "OGG": {}, "M4A": {}, "MP4": {}, "WAV": {}, "AAC": {}}
+
 func fixTags(
 	logger *slog.Logger,
 	osOpen func(name string) (io.ReadCloser, error),
@@ -79,8 +81,8 @@ func fixTags(
 	}
 
 	for _, dirEntry := range dirEntries {
-		ext := filepath.Ext(dirEntry.Name())
-		if dirEntry.IsDir() || (ext != ".mp3" && ext != ".flac") {
+		upperExt := strings.ToUpper(strings.TrimPrefix(filepath.Ext(dirEntry.Name()), "."))
+		if dirEntry.IsDir() || !musicExts.Contains(upperExt) {
 			continue
 		}
 
@@ -157,6 +159,8 @@ func FixTags(
 	return fixTags(logger, osOpen, os.ReadDir, taglib.ReadTags, taglib.WriteTags, tags, fileSpecificTags, overwrites, workpath, inferNames, readAlbumInfo, noFix)
 }
 
+type TagKeySet = InsStringKeySet
+
 var (
 	NoOverWriteTags  = TagKeySet{}
 	OverwriteAllTags = TagKeySet{"*": {}}
@@ -212,9 +216,9 @@ func AlbumInfoToFileTags(albumInfo *AlbumInfo) map[string]map[string]string {
 	return res
 }
 
-type TagKeySet map[string]struct{}
+type InsStringKeySet map[string]struct{}
 
-func (s TagKeySet) Contains(v string) bool {
+func (s InsStringKeySet) Contains(v string) bool {
 	if _, ok := s["*"]; ok {
 		return true
 	}
@@ -222,6 +226,6 @@ func (s TagKeySet) Contains(v string) bool {
 	return ok
 }
 
-func (s TagKeySet) Add(v string) {
+func (s InsStringKeySet) Add(v string) {
 	s[strings.ToUpper(v)] = struct{}{}
 }

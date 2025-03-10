@@ -62,12 +62,13 @@ var (
 
 func TestFetchAlbum(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
+	formatPref := TrackFormatRanking{"FLAC", "MP3"}
 
 	t.Run("title not found exit early", func(t *testing.T) {
 		client := stubClient{
 			".": {"GET": {http.StatusOK, "<div></div>"}},
 		}
-		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, false, false, false, DownloadAllTracks)
+		_, _, err := fetchAlbum(context.Background(), client, logger, nil, nil, nil, ".", ".", false, false, false, false, false, DownloadAllTracks, formatPref)
 		if err == nil || !strings.Contains(err.Error(), "album name") {
 			t.Fatalf("expected error, got nil")
 		}
@@ -92,7 +93,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, false, true, DownloadAllTracks)
+		res, folder, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, false, true, DownloadAllTracks, formatPref)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -183,7 +184,7 @@ func TestFetchAlbum(t *testing.T) {
 			return nil, os.ErrNotExist
 		}
 
-		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, true, false, DownloadAllTracks)
+		res, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", false, false, false, true, false, DownloadAllTracks, formatPref)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -265,7 +266,7 @@ func TestFetchAlbum(t *testing.T) {
 		set := TrackNumberSet{}
 		set.Add(TrackNumberKey{"01", "002"})
 
-		_, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", true, false, true, true, true, set)
+		_, _, err := fetchAlbum(context.Background(), client, logger, mkMkdirAll, mkFS.Create, mkStat, ".", "https://example.com/", true, false, true, true, true, set, formatPref)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -326,6 +327,47 @@ func TestTrackNumberSet(t *testing.T) {
 		}
 		if k := (&TrackInfo{DiscNumber: "1", TrackNumber: "2"}); s.Contains(k) {
 			t.Fatalf("expected set to not contain %v", k)
+		}
+	})
+}
+
+func TestMapPreferenceAccessor(t *testing.T) {
+	t.Run("Empty", func(t *testing.T) {
+		a := MapPreferenceAccessor[int]{}
+
+		mp := map[string]int{"FLAC": 1, "MP3": 2, "OGG": 3, "WAV": 4}
+		if v, ok := a.GetFrom(mp); ok {
+			t.Fatalf("expected not ok, got %d", v)
+		}
+	})
+
+	t.Run("Keys in order", func(t *testing.T) {
+		a := MapPreferenceAccessor[int]{"FLAC", "MP3", "OGG"}
+
+		mp := map[string]int{"FLAC": 1, "MP3": 2, "OGG": 3, "WAV": 4}
+		if v, ok := a.GetFrom(mp); !ok || v != 1 {
+			t.Fatalf("expected 1, got %d", v)
+		}
+		mp = map[string]int{"MP3": 2, "OGG": 3, "WAV": 4}
+		if v, ok := a.GetFrom(mp); !ok || v != 2 {
+			t.Fatalf("expected 2, got %d", v)
+		}
+		mp = map[string]int{"WAV": 4}
+		if v, ok := a.GetFrom(mp); ok {
+			t.Fatalf("expected not ok, got %d", v)
+		}
+	})
+
+	t.Run("Wildcard", func(t *testing.T) {
+		a := MapPreferenceAccessor[int]{"MP3", "*"}
+
+		mp := map[string]int{"FLAC": 1, "MP3": 2, "OGG": 3, "WAV": 4}
+		if v, ok := a.GetFrom(mp); !ok || v != 2 {
+			t.Fatalf("expected 2, got %d", v)
+		}
+		mp = map[string]int{"OGG": 3, "WAV": 4}
+		if v, ok := a.GetFrom(mp); !ok || (v != 3 && v != 4) {
+			t.Fatalf("expected ok, got not ok")
 		}
 	})
 }

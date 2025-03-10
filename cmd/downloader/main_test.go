@@ -40,3 +40,15 @@ func TestTrackFlags(t *testing.T) {
 		}
 	})
 }
+
+func TestFormatPreferenceFlags(t *testing.T) {
+	t.Run("Happy path", func(t *testing.T) {
+		f := formatPreferenceFlags{}
+		f.Set("mp3,FLAC,*")
+
+		expected := formatPreferenceFlags{"MP3", "FLAC", "*"}
+		if !reflect.DeepEqual(f, expected) {
+			t.Fatalf("expected %v, got %v", expected, f)
+		}
+	})
+}

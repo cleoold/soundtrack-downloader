@@ -21,8 +21,7 @@ func (t trackFlags) String() string {
 
 func (t trackFlags) Set(value string) error {
 	tt := pkg.TrackNumberSet(t)
-	parts := strings.SplitSeq(value, ",")
-	for part := range parts {
+	for part := range strings.SplitSeq(value, ",") {
 		part := strings.TrimSpace(part)
 		// Note: no validation like convertibility to int is done here
 		sp := strings.Split(part, "-")
@@ -33,6 +32,19 @@ func (t trackFlags) Set(value string) error {
 		} else {
 			return fmt.Errorf("invalid track number format: %s", value)
 		}
+	}
+	return nil
+}
+
+type formatPreferenceFlags pkg.TrackFormatRanking
+
+func (f *formatPreferenceFlags) String() string {
+	return fmt.Sprintf("%v", pkg.TrackFormatRanking(*f))
+}
+
+func (f *formatPreferenceFlags) Set(value string) error {
+	for part := range strings.SplitSeq(value, ",") {
+		*f = append(*f, strings.ToUpper(strings.TrimSpace(part)))
 	}
 	return nil
 }
@@ -50,6 +62,8 @@ func main() {
 	overwriteFlag := flag.Bool("overwrite", false, "Redownload existing files. This option does not affect generation of info.json and link. Default: false")
 	trackFlag := trackFlags{}
 	flag.Var(&trackFlag, "track", "Tracks to download. Format: [disc number-]track number. Example: -track 1-1,1-2. Special value '*' means all tracks. Default to all tracks.")
+	trackFormatPreferenceFlag := formatPreferenceFlags{}
+	flag.Var(&trackFormatPreferenceFlag, "track-format-preference", "File format preference. If available, files with types in the left of this list will be downloaded. Default to 'FLAC,MP3,OGG,*'")
 	flag.Parse()
 	if *urlFlag == "" {
 		flag.Usage()
@@ -74,8 +88,14 @@ func main() {
 	} else if *noDownloadTrackFlag {
 		logger.Warn("specifying track while no-download-track is set has no effect")
 	}
+	if len(trackFormatPreferenceFlag) == 0 {
+		default_ := pkg.TrackFormatRanking{"FLAC", "MP3", "OGG", "*"}
+		trackFormatPreferenceFlag = formatPreferenceFlags(default_)
+	} else if *noDownloadTrackFlag {
+		logger.Warn("specifying track-format-preference while no-download-track is set has no effect")
+	}
 
-	info, folder, err := pkg.FetchAlbum(context.Background(), http.DefaultClient, logger, ".", *urlFlag, *noDownloadImageFlag, *noDownloadTrackFlag, *noCreateAlbumInfoFlag, *noCreateWindowsShortcutFlag, *overwriteFlag, pkg.TrackNumberSet(trackFlag))
+	info, folder, err := pkg.FetchAlbum(context.Background(), http.DefaultClient, logger, ".", *urlFlag, *noDownloadImageFlag, *noDownloadTrackFlag, *noCreateAlbumInfoFlag, *noCreateWindowsShortcutFlag, *overwriteFlag, pkg.TrackNumberSet(trackFlag), pkg.TrackFormatRanking(trackFormatPreferenceFlag))
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)

@@ -162,6 +162,7 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 
 var downloadTextRegex = regexp.MustCompile(`Click here to download as (.+?)$`)
 
+// upper case keys
 func FetchTrackDownloadUrl(ctx context.Context, httpClient HttpDoClient, pageUrl string) (map[string]string, error) {
 	body, err := getUrl(ctx, httpClient, pageUrl)
 	if err != nil {
@@ -190,8 +191,6 @@ func FetchTrackDownloadUrl(ctx context.Context, httpClient HttpDoClient, pageUrl
 	return result, nil
 }
 
-var songFormatRank = []string{"FLAC", "MP3", "OGG", "M4A", "WAV"}
-
 func fetchAlbum(
 	ctx context.Context,
 	httpClient HttpDoClient,
@@ -207,6 +206,7 @@ func fetchAlbum(
 	noCreateShortcut,
 	overwrite bool,
 	trackNumberSet TrackNumberSet,
+	trackFormatRanking TrackFormatRanking,
 ) (*AlbumInfo, string, error) {
 	logger.Info("fetching from " + albumUrl)
 	albumInfo, err := FetchAlbumInfo(ctx, httpClient, albumUrl)
@@ -282,17 +282,11 @@ func fetchAlbum(
 				continue
 			}
 			t.SongUrl = trackUrl
-			matched := false
-			for _, format := range songFormatRank {
-				if url, ok := trackUrl[format]; ok {
-					download(url, "track")
-					matched = true
-					break
-				}
+			if u, ok := trackFormatRanking.GetFrom(trackUrl); ok {
+				download(u, "track")
+				continue
 			}
-			if !matched {
-				slog.Error("failed to download track " + t.Name + ": no supported format: " + t.PageUrl)
-			}
+			logger.Info("no preferred format found for " + t.Name)
 		}
 		if len(albumInfo.Tracks) == 0 {
 			logger.Info("no tracks found")
@@ -340,12 +334,15 @@ func FetchAlbum(
 	noCreateShortcut,
 	overwrite bool,
 	trackNumberSet TrackNumberSet,
+	trackFormatRanking TrackFormatRanking,
 ) (*AlbumInfo, string, error) {
 	osCreate := func(name string) (io.WriteCloser, error) {
 		return os.Create(name) // covariance
 	}
-	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownloadImage, noDownloadTrack, noCreateInfo, noCreateShortcut, overwrite, trackNumberSet)
+	return fetchAlbum(ctx, httpClient, logger, os.MkdirAll, osCreate, os.Stat, workPath, albumUrl, noDownloadImage, noDownloadTrack, noCreateInfo, noCreateShortcut, overwrite, trackNumberSet, trackFormatRanking)
 }
+
+type TrackFormatRanking = MapPreferenceAccessor[string]
 
 var DownloadAllTracks = TrackNumberSet{TrackNumberKey{"*", "*"}: {}}
 
@@ -370,4 +367,21 @@ func (s TrackNumberSet) Add(key TrackNumberKey) {
 	disc := strings.TrimLeft(key.DiscNumber, "0")
 	track := strings.TrimLeft(key.TrackNumber, "0")
 	s[TrackNumberKey{disc, track}] = struct{}{}
+}
+
+type MapPreferenceAccessor[V any] []string
+
+func (pa MapPreferenceAccessor[V]) GetFrom(m map[string]V) (V, bool) {
+	for _, key := range pa {
+		if v, ok := m[key]; ok {
+			return v, true
+		} else if key == "*" {
+			// Choose any one
+			for _, v := range m {
+				return v, true
+			}
+		}
+	}
+	var zero V
+	return zero, false
 }
