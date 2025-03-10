@@ -136,7 +136,7 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 
 	// Get links to tracks
 	doc.Find("#pageContent #songlist tr:not(#songlist_header):not(#songlist_footer)").Each(func(i int, s *goquery.Selection) {
-		trackInfo := TrackInfo{}
+		trackInfo := TrackInfo{SongUrl: map[string]string{}}
 		s.Find("td").Each(func(j int, s *goquery.Selection) {
 			switch j {
 			case CDIndex:
