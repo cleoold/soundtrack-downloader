@@ -24,5 +24,5 @@ type TrackInfo struct {
 	DiscNumber  string `json:",omitzero"`
 	TrackNumber string
 	PageUrl     string
-	SongUrl     string
+	SongUrl     map[string]string
 }

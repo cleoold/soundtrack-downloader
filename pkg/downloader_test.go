@@ -118,13 +118,19 @@ func TestFetchAlbum(t *testing.T) {
 					Name:        "song1",
 					TrackNumber: "1",
 					PageUrl:     "https://example.com/01.%2520song1.mp3",
-					SongUrl:     "https://download.com/01.%20song1.flac",
+					SongUrl: map[string]string{
+						"FLAC": "https://download.com/01.%20song1.flac",
+						"MP3":  "https://download.com/01.%20song1.mp3",
+					},
 				},
 				{
 					Name:        "song2",
 					TrackNumber: "2",
 					PageUrl:     "https://example.com/01.%2520song2.mp3",
-					SongUrl:     "https://download.com/02.%20song2.flac",
+					SongUrl: map[string]string{
+						"FLAC": "https://download.com/02.%20song2.flac",
+						"MP3":  "https://download.com/02.%20song2.mp3",
+					},
 				},
 			},
 		}
@@ -202,14 +208,20 @@ func TestFetchAlbum(t *testing.T) {
 					DiscNumber:  "1",
 					TrackNumber: "1",
 					PageUrl:     "https://example.com/1-01.%2520song1.mp3",
-					SongUrl:     "https://download.com/1-01.%20song1.flac",
+					SongUrl: map[string]string{
+						"FLAC": "https://download.com/1-01.%20song1.flac",
+						"MP3":  "https://download.com/1-01.%20song1.mp3",
+					},
 				},
 				{
 					Name:        "song2",
 					DiscNumber:  "1",
 					TrackNumber: "2",
 					PageUrl:     "https://example.com/1-01.%2520song2.mp3",
-					SongUrl:     "https://download.com/1-02.%20song2.flac",
+					SongUrl: map[string]string{
+						"FLAC": "https://download.com/1-02.%20song2.flac",
+						"MP3":  "https://download.com/1-02.%20song2.mp3",
+					},
 				}},
 		}
 		if !reflect.DeepEqual(*res, expAlbumInfo) {

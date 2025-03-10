@@ -17,9 +17,9 @@ import (
 
 var (
 	// File name may be "1-01. Track Name.flac"
-	discTrackNameRegex = regexp.MustCompile(`^(\d+)-(\d+)\.\s*(.+)\.(mp3|flac)$`)
+	discTrackNameRegex = regexp.MustCompile(`^(\d+)-(\d+)\.\s*(.+)\.([\w\d]+)$`)
 	// File name may be "01. Track Name.flac"
-	trackNameRegex = regexp.MustCompile(`^(\d+)\.\s*(.+)\.(mp3|flac)$`)
+	trackNameRegex = regexp.MustCompile(`^(\d+)\.\s*(.+)\.([\w\d]+)$`)
 )
 
 func inferTagsFromFileName(fileName string) map[string]string {
@@ -203,9 +203,11 @@ func AlbumInfoToFileTags(albumInfo *AlbumInfo) map[string]map[string]string {
 			tags[taglib.TrackNumber] = t.TrackNumber
 		}
 		// Get file name
-		unescaped, _ := url.QueryUnescape(t.SongUrl)
-		fileName := sanitizeFilename(path.Base(unescaped))
-		res[fileName] = tags
+		for _, link := range t.SongUrl {
+			unescaped, _ := url.QueryUnescape(link)
+			fileName := sanitizeFilename(path.Base(unescaped))
+			res[fileName] = tags
+		}
 	}
 	return res
 }

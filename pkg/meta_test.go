@@ -229,13 +229,13 @@ func TestFixTags(t *testing.T) {
 				Developer: "My Dev",
 				Tracks: []TrackInfo{
 					{
-						SongUrl:     "https://example.com/1-01. Song1.flac",
+						SongUrl:     map[string]string{"FLAC": "https://example.com/1-01. Song1.flac"},
 						Name:        "Song 1",
 						DiscNumber:  "1",
 						TrackNumber: "1",
 					},
 					{
-						SongUrl:     "https://example.com/1-02.%20Song2.flac",
+						SongUrl:     map[string]string{"flac": "https://example.com/1-02.%20Song2.flac"},
 						Name:        "Song 2",
 						DiscNumber:  "1",
 						TrackNumber: "2",
@@ -385,12 +385,17 @@ func TestAlbumInfoToFileTags(t *testing.T) {
 						Name:        "Song1",
 						DiscNumber:  "1",
 						TrackNumber: "01",
-						SongUrl:     "https://example.com/1-01. Song1.flac",
+						SongUrl: map[string]string{
+							"FLAC": "https://example.com/1-01. Song1.flac",
+						},
 					},
 					{
 						Name:        "Song2",
 						TrackNumber: "02",
-						SongUrl:     "https://example.com/this-is-that/you%20%28you%20know%29/1-01.%20My%20Song%20%28By%20You%29.mp3",
+						SongUrl: map[string]string{
+							"FLAC": "https://example.com/this-is-that/you%20%28you%20know%29/1-01.%20My%20Song%20%28By%20You%29.flac",
+							"MP3":  "https://example.com/this-is-that/you%20%28you%20know%29/1-01.%20My%20Song%20%28By%20You%29.mp3",
+						},
 					},
 				},
 			},
@@ -399,6 +404,10 @@ func TestAlbumInfoToFileTags(t *testing.T) {
 					taglib.Title:       "Song1",
 					taglib.DiscNumber:  "1",
 					taglib.TrackNumber: "01",
+				},
+				"1-01. My Song (By You).flac": {
+					taglib.Title:       "Song2",
+					taglib.TrackNumber: "02",
 				},
 				"1-01. My Song (By You).mp3": {
 					taglib.Title:       "Song2",

@@ -160,40 +160,37 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 	return &result, nil
 }
 
-func FetchTrackDownloadUrl(ctx context.Context, httpClient HttpDoClient, pageUrl string) (string, error) {
+var downloadTextRegex = regexp.MustCompile(`Click here to download as (.+?)$`)
+
+func FetchTrackDownloadUrl(ctx context.Context, httpClient HttpDoClient, pageUrl string) (map[string]string, error) {
 	body, err := getUrl(ctx, httpClient, pageUrl)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch track page: %w", err)
+		return nil, fmt.Errorf("failed to fetch track page: %w", err)
 	}
 	defer body.Close()
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse html file for track page: %w", err)
+		return nil, fmt.Errorf("failed to parse html file for track page: %w", err)
 	}
 
-	result := ""
-	selectors := []string{
-		"#pageContent a span:contains('Click here to download as FLAC')",
-		"#pageContent a span:contains('Click here to download as MP3')",
-	}
-	for _, selector := range selectors {
-		doc.Find(selector).Each(func(i int, s *goquery.Selection) {
-			downloadUrl, ok := s.Parent().Attr("href")
-			if ok {
-				downloadUrl, _ = joinUrl(pageUrl, downloadUrl)
-				result = downloadUrl
+	result := map[string]string{}
+	doc.Find("#pageContent a span:contains('Click here to download as')").Each(func(i int, s *goquery.Selection) {
+		downloadUrl, ok := s.Parent().Attr("href")
+		if ok {
+			downloadUrl, _ = joinUrl(pageUrl, downloadUrl)
+			if match := downloadTextRegex.FindStringSubmatch(s.Text()); len(match) > 1 {
+				result[strings.ToUpper(match[1])] = downloadUrl
 			}
-		})
-		if result != "" {
-			break
 		}
-	}
-	if result == "" {
-		return "", fmt.Errorf("failed to find download link")
+	})
+	if len(result) == 0 {
+		return nil, fmt.Errorf("failed to find download link")
 	}
 
 	return result, nil
 }
+
+var songFormatRank = []string{"FLAC", "MP3", "OGG", "M4A", "WAV"}
 
 func fetchAlbum(
 	ctx context.Context,
@@ -285,7 +282,17 @@ func fetchAlbum(
 				continue
 			}
 			t.SongUrl = trackUrl
-			download(trackUrl, "track")
+			matched := false
+			for _, format := range songFormatRank {
+				if url, ok := trackUrl[format]; ok {
+					download(url, "track")
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				slog.Error("failed to download track " + t.Name + ": no supported format: " + t.PageUrl)
+			}
 		}
 		if len(albumInfo.Tracks) == 0 {
 			logger.Info("no tracks found")
