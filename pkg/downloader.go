@@ -114,11 +114,20 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 
 	// Get links to images
 	doc.Find("#pageContent .albumImage a").Each(func(i int, s *goquery.Selection) {
+		imgInfo := ImageInfo{}
 		imgUrl, ok := s.Attr("href")
 		if ok {
 			imgUrl, _ = joinUrl(albumUrl, imgUrl)
-			result.ImageUrls = append(result.ImageUrls, imgUrl)
+			imgInfo.ImageUrl = imgUrl
 		}
+		s.Find("img").Each(func(j int, s *goquery.Selection) {
+			thumbUrl, ok := s.Attr("src")
+			if ok {
+				thumbUrl, _ = joinUrl(albumUrl, thumbUrl)
+				imgInfo.ThumbUrl = thumbUrl
+			}
+		})
+		result.Images = append(result.Images, imgInfo)
 	})
 
 	CDIndex := doc.Find("#pageContent #songlist_header th:contains('CD')").Index()
@@ -214,7 +223,7 @@ func fetchAlbum(
 		"developer", albumInfo.Developer,
 		"publisher", albumInfo.Publisher,
 		"albumType", albumInfo.AlbumType,
-		"images", len(albumInfo.ImageUrls),
+		"images", len(albumInfo.Images),
 		"tracks", len(albumInfo.Tracks),
 	)
 
@@ -255,10 +264,10 @@ func fetchAlbum(
 	}
 
 	if !noDownloadImage {
-		for _, imgUrl := range albumInfo.ImageUrls {
-			download(imgUrl, "image")
+		for _, imgInfo := range albumInfo.Images {
+			download(imgInfo.ImageUrl, "image")
 		}
-		if len(albumInfo.ImageUrls) == 0 {
+		if len(albumInfo.Images) == 0 {
 			logger.Info("no images found")
 		}
 	}

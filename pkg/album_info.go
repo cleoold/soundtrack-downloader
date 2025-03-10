@@ -10,8 +10,13 @@ type AlbumInfo struct {
 	CatalogNumber string
 	AlbumType     string
 
-	ImageUrls []string
-	Tracks    []TrackInfo
+	Images []ImageInfo
+	Tracks []TrackInfo
+}
+
+type ImageInfo struct {
+	ImageUrl string
+	ThumbUrl string
 }
 
 type TrackInfo struct {

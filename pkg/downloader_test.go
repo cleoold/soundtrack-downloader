@@ -107,7 +107,12 @@ func TestFetchAlbum(t *testing.T) {
 			Developer: "My Studio; Other Studio",
 			Publisher: "My Publisher",
 			AlbumType: "Soundtrack",
-			ImageUrls: []string{"https://download.com/Cover.jpg"},
+			Images: []ImageInfo{
+				{
+					ImageUrl: "https://download.com/Cover.jpg",
+					ThumbUrl: "https://download.com/thumbs/Cover.jpg",
+				},
+			},
 			Tracks: []TrackInfo{
 				{
 					Name:        "song1",
@@ -120,7 +125,8 @@ func TestFetchAlbum(t *testing.T) {
 					TrackNumber: "2",
 					PageUrl:     "https://example.com/01.%2520song2.mp3",
 					SongUrl:     "https://download.com/02.%20song2.flac",
-				}},
+				},
+			},
 		}
 		if !reflect.DeepEqual(*res, expAlbumInfo) {
 			t.Fatalf("expected %v, got %v", expAlbumInfo, *res)
@@ -184,7 +190,12 @@ func TestFetchAlbum(t *testing.T) {
 			CatalogNumber: "ABC-2061~3",
 			Publisher:     "My Publisher",
 			AlbumType:     "Arrangement",
-			ImageUrls:     []string{"https://download.com/Cover.jpg"},
+			Images: []ImageInfo{
+				{
+					ImageUrl: "https://download.com/Cover.jpg",
+					ThumbUrl: "https://download.com/thumbs/Cover.jpg",
+				},
+			},
 			Tracks: []TrackInfo{
 				{
 					Name:        "song1",
