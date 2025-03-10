@@ -179,11 +179,14 @@ func AlbumInfoToTags(albumInfo *AlbumInfo) map[string]string {
 		tags[taglib.AlbumArtist] = albumInfo.Developer
 	}
 	if albumInfo.Publisher != "" {
-		tags["PUBLISHER"] = albumInfo.Publisher
+		tags[taglib.Label] = albumInfo.Publisher
 		if albumInfo.Developer == "" {
 			tags[taglib.Artist] = albumInfo.Publisher
 			tags[taglib.AlbumArtist] = albumInfo.Publisher
 		}
+	}
+	if albumInfo.CatalogNumber != "" {
+		tags[taglib.CatalogNumber] = albumInfo.CatalogNumber
 	}
 	if albumInfo.AlbumType != "" {
 		tags[taglib.Genre] = albumInfo.AlbumType
