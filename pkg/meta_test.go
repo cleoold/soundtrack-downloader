@@ -278,7 +278,6 @@ func TestFixTags(t *testing.T) {
 			},
 			"My Album/1-02. Song2.flac": {
 				taglib.AlbumArtist: {"My Album Artist"},
-				taglib.Artist:      {"My Dev"},
 				taglib.Album:       {"My Album"},
 				taglib.Date:        {"2022"},
 				taglib.Title:       {"Song 2"},
@@ -335,7 +334,6 @@ func TestAlbumInfoToTags(t *testing.T) {
 			expected: map[string]string{
 				taglib.Album:         "MyAlbum",
 				taglib.Date:          "2021",
-				taglib.Artist:        "MyDev",
 				taglib.AlbumArtist:   "MyDev",
 				taglib.Label:         "MyPub",
 				taglib.CatalogNumber: "123",
@@ -357,7 +355,6 @@ func TestAlbumInfoToTags(t *testing.T) {
 			expected: map[string]string{
 				taglib.Album:       "MyAlbum",
 				taglib.Date:        "2021",
-				taglib.Artist:      "MyPub",
 				taglib.AlbumArtist: "MyPub",
 				taglib.Label:       "MyPub",
 			},

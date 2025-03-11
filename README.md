@@ -28,7 +28,7 @@ At times the downloaded tracks may not have all the metadata so won't display pr
 bin/downloader -url https://downloads.khinsider.com/game-soundtracks/album/<some-album> -fix-tags
 ```
 
-It will then, if missing, populate metadata fields such as "Artist", "Album name", "Title" and "Track number" (retrieved from the album website).
+It will then, if missing, populate metadata fields such as "ALBUMARTIST", "ALBUM", "TITLE" and "TRACKNUMBER" (retrieved from the album website).
 
 The metadata-fixing process can also be done retroactively after the download by using
 
@@ -41,8 +41,10 @@ here the metadata is obtained using the `info.json` file created during the down
 You can provide tags yourself that have higher precedence than the ones obtained from the `info.json` file:
 
 ```bash
-bin/meta -folder <Some Folder> -read-album-info -tag ARTIST=SomeArtist -tag ALBUM=SomeAlbum
+bin/meta -folder <Some Folder> -read-album-info -tag ARTIST=SomeArtist -tag ALBUMARTIST=SomeArtist -tag ALBUM=SomeAlbum -no-fix
 ```
+
+Here, the `-no-fix` flag is also used to only display the proposed changes without actually touching the music files. This is recommended when you are unsure about what the script will do. Once satisfied, the flag can be removed from the command to commit the changes.
 
 ## Synopsis
 

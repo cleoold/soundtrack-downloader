@@ -175,13 +175,11 @@ func AlbumInfoToTags(albumInfo *AlbumInfo) map[string]string {
 		tags[taglib.Date] = albumInfo.Year
 	}
 	if albumInfo.Developer != "" {
-		tags[taglib.Artist] = albumInfo.Developer
 		tags[taglib.AlbumArtist] = albumInfo.Developer
 	}
 	if albumInfo.Publisher != "" {
 		tags[taglib.Label] = albumInfo.Publisher
 		if albumInfo.Developer == "" {
-			tags[taglib.Artist] = albumInfo.Publisher
 			tags[taglib.AlbumArtist] = albumInfo.Publisher
 		}
 	}
