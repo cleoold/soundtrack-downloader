@@ -28,5 +28,8 @@ build-arch-%:
 test:
 	$(GO) test -v ./...
 
+test-cover:
+	$(GO) test -v -cover ./...
+
 clean:
 	rm -f $(OUTDIR)/*
