@@ -1,14 +1,15 @@
 package pkg
 
 type AlbumInfo struct {
-	Url           string
-	Name          string
-	Platforms     string
-	Year          string
-	Developer     string
-	Publisher     string
-	CatalogNumber string
-	AlbumType     string
+	Url              string
+	Name             string
+	AlternativeNames []string
+	Platforms        string
+	Year             string
+	Developer        string
+	Publisher        string
+	CatalogNumber    string
+	AlbumType        string
 
 	Images []ImageInfo
 	Tracks []TrackInfo

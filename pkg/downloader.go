@@ -77,7 +77,7 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 		return nil, fmt.Errorf("failed to parse html file for album: %w", err)
 	}
 
-	result := AlbumInfo{Url: albumUrl}
+	result := AlbumInfo{Url: albumUrl, AlternativeNames: []string{}}
 
 	doc.Find("#pageContent h2").First().Each(func(i int, s *goquery.Selection) {
 		result.Name = strings.TrimSpace(s.Text())
@@ -85,6 +85,14 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 	if result.Name == "" {
 		return nil, fmt.Errorf("failed to find album name")
 	}
+
+	doc.Find("#pageContent .albuminfoAlternativeTitles").Each(func(i int, s *goquery.Selection) {
+		for t := range strings.SplitSeq(s.Text(), "\n") {
+			if t = strings.TrimSpace(t); t != "" {
+				result.AlternativeNames = append(result.AlternativeNames, t)
+			}
+		}
+	})
 
 	// Parse album info from description below title
 	doc.Find("#pageContent p:contains('Platforms:')").First().Each(func(i int, s *goquery.Selection) {
