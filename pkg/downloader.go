@@ -89,22 +89,22 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 	// Parse album info from description below title
 	doc.Find("#pageContent p:contains('Platforms:')").First().Each(func(i int, s *goquery.Selection) {
 		text := s.Text()
-		if match := platformRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := platformRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
 			result.Platforms = strings.ReplaceAll(match[1], ", ", "; ")
 		}
-		if match := yearRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := yearRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
 			result.Year = match[1]
 		}
-		if match := developerRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := developerRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
 			result.Developer = strings.ReplaceAll(match[1], ", ", "; ")
 		}
-		if match := publisherRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := publisherRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
 			result.Publisher = strings.ReplaceAll(match[1], ", ", "; ")
 		}
-		if match := catalogRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := catalogRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
 			result.CatalogNumber = match[1]
 		}
-		if match := albumTypeRegex.FindStringSubmatch(text); len(match) > 1 {
+		if match := albumTypeRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
 			result.AlbumType = strings.ReplaceAll(match[1], ", ", "; ")
 			if result.AlbumType == "Gamerip" {
 				result.AlbumType = "Soundtrack"
