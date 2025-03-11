@@ -59,7 +59,7 @@ func getUrl(ctx context.Context, client HttpDoClient, url string) (io.ReadCloser
 
 var (
 	platformRegex  = regexp.MustCompile(`(?m)Platforms:\s*(.+?)\s*$`)
-	yearRegex      = regexp.MustCompile(`Year:\s*(\d+)`)
+	yearRegex      = regexp.MustCompile(`(?m)Year:\s*(.+?)\s*$`)
 	developerRegex = regexp.MustCompile(`(?m)Developed by:\s*(.+?)\s*$`)
 	publisherRegex = regexp.MustCompile(`(?m)Published by:\s*(.+?)\s*$`)
 	catalogRegex   = regexp.MustCompile(`(?m)Catalog Number:\s*(.+?)\s*$`)
@@ -77,7 +77,18 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 		return nil, fmt.Errorf("failed to parse html file for album: %w", err)
 	}
 
-	result := AlbumInfo{Url: albumUrl, AlternativeNames: []string{}}
+	result := AlbumInfo{
+		Url:              albumUrl,
+		AlternativeNames: []string{},
+		Platforms:        []string{},
+		Year:             []string{},
+		Developer:        []string{},
+		Publisher:        []string{},
+		CatalogNumber:    []string{},
+		AlbumType:        []string{},
+		Images:           []ImageInfo{},
+		Tracks:           []TrackInfo{},
+	}
 
 	doc.Find("#pageContent h2").First().Each(func(i int, s *goquery.Selection) {
 		result.Name = strings.TrimSpace(s.Text())
@@ -96,24 +107,25 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 
 	// Parse album info from description below title
 	doc.Find("#pageContent p:contains('Platforms:')").First().Each(func(i int, s *goquery.Selection) {
+		splitter := ", "
 		text := s.Text()
 		if match := platformRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
-			result.Platforms = strings.ReplaceAll(match[1], ", ", "; ")
+			result.Platforms = strings.Split(match[1], splitter)
 		}
 		if match := yearRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
-			result.Year = match[1]
+			result.Year = strings.Split(match[1], splitter)
 		}
 		if match := developerRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
-			result.Developer = strings.ReplaceAll(match[1], ", ", "; ")
+			result.Developer = strings.Split(match[1], splitter)
 		}
 		if match := publisherRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
-			result.Publisher = strings.ReplaceAll(match[1], ", ", "; ")
+			result.Publisher = strings.Split(match[1], splitter)
 		}
 		if match := catalogRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
-			result.CatalogNumber = match[1]
+			result.CatalogNumber = strings.Split(match[1], splitter)
 		}
 		if match := albumTypeRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
-			result.AlbumType = strings.ReplaceAll(match[1], ", ", "; ")
+			result.AlbumType = strings.Split(match[1], splitter)
 		}
 	})
 

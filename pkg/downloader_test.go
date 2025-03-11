@@ -101,18 +101,15 @@ func TestFetchAlbum(t *testing.T) {
 			t.Fatalf("expected folder to be My Album 1, got %s", folder)
 		}
 		expAlbumInfo := AlbumInfo{
-			Url:  "https://example.com/",
-			Name: "My Album 1",
-			AlternativeNames: []string{
-				"Mein Album 1",
-				"Mon Album 1",
-				"Mio Album 1",
-			},
-			Platforms: "MacOS; Windows",
-			Year:      "2002",
-			Developer: "My Studio; Other Studio",
-			Publisher: "My Publisher",
-			AlbumType: "Soundtrack",
+			Url:              "https://example.com/",
+			Name:             "My Album 1",
+			AlternativeNames: []string{"Mein Album 1", "Mon Album 1", "Mio Album 1"},
+			Platforms:        []string{"MacOS", "Windows"},
+			Year:             []string{"2002"},
+			Developer:        []string{"My Studio", "Other Studio"},
+			Publisher:        []string{"My Publisher"},
+			CatalogNumber:    []string{},
+			AlbumType:        []string{"Soundtrack"},
 			Images: []ImageInfo{
 				{
 					ImageUrl: "https://download.com/Cover.jpg",
@@ -198,11 +195,12 @@ func TestFetchAlbum(t *testing.T) {
 			Url:              "https://example.com/",
 			Name:             "My Album 2",
 			AlternativeNames: []string{},
-			Platforms:        "MacOS; Windows",
-			Year:             "2002",
-			CatalogNumber:    "ABC-2061~3",
-			Publisher:        "My Publisher",
-			AlbumType:        "Arrangement",
+			Platforms:        []string{"MacOS", "Windows"},
+			Year:             []string{"2002"},
+			CatalogNumber:    []string{"ABC-2061~3"},
+			Developer:        []string{},
+			Publisher:        []string{"My Publisher"},
+			AlbumType:        []string{"Arrangement"},
 			Images: []ImageInfo{
 				{
 					ImageUrl: "https://download.com/Cover.jpg",

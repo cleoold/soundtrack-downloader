@@ -36,8 +36,8 @@ func TestFixTags(t *testing.T) {
 			}
 			info := AlbumInfo{
 				Name:      "MyAlbum",
-				Year:      "2021",
-				Developer: "MyDev",
+				Year:      []string{"2021"},
+				Developer: []string{"MyDev"},
 			}
 			buffer := new(bytes.Buffer)
 			_ = json.NewEncoder(buffer).Encode(info)
@@ -225,8 +225,8 @@ func TestFixTags(t *testing.T) {
 			}
 			info := AlbumInfo{
 				Name:      "My Album",
-				Year:      "2021",
-				Developer: "My Dev",
+				Year:      []string{"2021"},
+				Developer: []string{"My Dev"},
 				Tracks: []TrackInfo{
 					{
 						SongUrl:     map[string]string{"FLAC": "https://example.com/1-01. Song1.flac"},
@@ -325,19 +325,19 @@ func TestAlbumInfoToTags(t *testing.T) {
 			name: "happy path converts AlbumInfo to tags",
 			info: AlbumInfo{
 				Name:          "MyAlbum",
-				Year:          "2021",
-				Developer:     "MyDev",
-				Publisher:     "MyPub",
-				CatalogNumber: "123",
-				AlbumType:     "MyType",
+				Year:          []string{"2021"},
+				Developer:     []string{"MyDev", "OtherDev"},
+				Publisher:     []string{"MyPub", "OtherPub"},
+				CatalogNumber: []string{"123"},
+				AlbumType:     []string{"MyType", "OtherType"},
 			},
 			expected: map[string]string{
 				taglib.Album:         "MyAlbum",
 				taglib.Date:          "2021",
-				taglib.AlbumArtist:   "MyDev",
-				taglib.Label:         "MyPub",
+				taglib.AlbumArtist:   "MyDev; OtherDev",
+				taglib.Label:         "MyPub; OtherPub",
 				taglib.CatalogNumber: "123",
-				taglib.Genre:         "MyType",
+				taglib.Genre:         "MyType; OtherType",
 			},
 		},
 		{
@@ -348,9 +348,12 @@ func TestAlbumInfoToTags(t *testing.T) {
 		{
 			name: "happy path set publisher as artist when developer is empty",
 			info: AlbumInfo{
-				Name:      "MyAlbum",
-				Year:      "2021",
-				Publisher: "MyPub",
+				Name:          "MyAlbum",
+				Year:          []string{"2021"},
+				Developer:     []string{},
+				Publisher:     []string{"MyPub"},
+				CatalogNumber: []string{},
+				AlbumType:     []string{},
 			},
 			expected: map[string]string{
 				taglib.Album:       "MyAlbum",

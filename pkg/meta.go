@@ -167,27 +167,28 @@ var (
 )
 
 func AlbumInfoToTags(albumInfo *AlbumInfo) map[string]string {
+	joiner := "; "
 	tags := map[string]string{}
 	if albumInfo.Name != "" {
 		tags[taglib.Album] = albumInfo.Name
 	}
-	if albumInfo.Year != "" {
-		tags[taglib.Date] = albumInfo.Year
+	if len(albumInfo.Year) != 0 {
+		tags[taglib.Date] = strings.Join(albumInfo.Year, joiner)
 	}
-	if albumInfo.Developer != "" {
-		tags[taglib.AlbumArtist] = albumInfo.Developer
+	if len(albumInfo.Developer) != 0 {
+		tags[taglib.AlbumArtist] = strings.Join(albumInfo.Developer, joiner)
 	}
-	if albumInfo.Publisher != "" {
-		tags[taglib.Label] = albumInfo.Publisher
-		if albumInfo.Developer == "" {
-			tags[taglib.AlbumArtist] = albumInfo.Publisher
+	if len(albumInfo.Publisher) != 0 {
+		tags[taglib.Label] = strings.Join(albumInfo.Publisher, joiner)
+		if len(albumInfo.Developer) == 0 {
+			tags[taglib.AlbumArtist] = strings.Join(albumInfo.Publisher, joiner)
 		}
 	}
-	if albumInfo.CatalogNumber != "" {
-		tags[taglib.CatalogNumber] = albumInfo.CatalogNumber
+	if len(albumInfo.CatalogNumber) != 0 {
+		tags[taglib.CatalogNumber] = strings.Join(albumInfo.CatalogNumber, joiner)
 	}
-	if albumInfo.AlbumType != "" {
-		tags[taglib.Genre] = albumInfo.AlbumType
+	if len(albumInfo.AlbumType) != 0 {
+		tags[taglib.Genre] = strings.Join(albumInfo.AlbumType, joiner)
 	}
 	return tags
 }
