@@ -106,9 +106,6 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 		}
 		if match := albumTypeRegex.FindStringSubmatch(text); len(match) > 1 && match[1] != "N/A" {
 			result.AlbumType = strings.ReplaceAll(match[1], ", ", "; ")
-			if result.AlbumType == "Gamerip" {
-				result.AlbumType = "Soundtrack"
-			}
 		}
 	})
 
