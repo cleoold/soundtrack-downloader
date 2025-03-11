@@ -129,6 +129,15 @@ func FetchAlbumInfo(ctx context.Context, httpClient HttpDoClient, albumUrl strin
 		}
 	})
 
+	// Get album description below the track list
+	doc.Find("#pageContent h2:contains('Description')").Each(func(i int, s *goquery.Selection) {
+		s.Next().Each(func(j int, s *goquery.Selection) {
+			if s.Is("p") {
+				result.Description = strings.TrimSpace(s.Text())
+			}
+		})
+	})
+
 	// Get links to images
 	doc.Find("#pageContent .albumImage a").Each(func(i int, s *goquery.Selection) {
 		imgInfo := ImageInfo{}

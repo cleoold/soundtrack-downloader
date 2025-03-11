@@ -10,6 +10,7 @@ type AlbumInfo struct {
 	Publisher        []string
 	CatalogNumber    []string
 	AlbumType        []string
+	Description      string
 
 	Images []ImageInfo
 	Tracks []TrackInfo

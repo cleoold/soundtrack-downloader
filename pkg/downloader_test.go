@@ -110,6 +110,7 @@ func TestFetchAlbum(t *testing.T) {
 			Publisher:        []string{"My Publisher"},
 			CatalogNumber:    []string{},
 			AlbumType:        []string{"Soundtrack"},
+			Description:      "This is a description of my album.",
 			Images: []ImageInfo{
 				{
 					ImageUrl: "https://download.com/Cover.jpg",
@@ -201,6 +202,7 @@ func TestFetchAlbum(t *testing.T) {
 			Developer:        []string{},
 			Publisher:        []string{"My Publisher"},
 			AlbumType:        []string{"Arrangement"},
+			Description:      "",
 			Images: []ImageInfo{
 				{
 					ImageUrl: "https://download.com/Cover.jpg",
