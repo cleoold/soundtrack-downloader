@@ -13,6 +13,43 @@ import (
 	"go.senan.xyz/taglib"
 )
 
+func TestInferTagsFromFileName(t *testing.T) {
+	type TG = map[string]string
+	tests := []struct {
+		input    string
+		expected TG
+	}{
+		{
+			input:    "1-01.  Track Name.flac",
+			expected: TG{taglib.DiscNumber: "1", taglib.TrackNumber: "01", taglib.Title: "Track Name"},
+		},
+		{
+			input:    "1-01 - Track Name.FLAC",
+			expected: TG{taglib.DiscNumber: "1", taglib.TrackNumber: "01", taglib.Title: "Track Name"},
+		},
+		{
+			input:    "119.  Track Name.FLAC",
+			expected: TG{taglib.TrackNumber: "119", taglib.Title: "Track Name"},
+		},
+		{
+			input:    "01 - Track Name.mp3",
+			expected: TG{taglib.TrackNumber: "01", taglib.Title: "Track Name"},
+		},
+		{
+			input:    "Track Name.mp3",
+			expected: TG{taglib.Title: "Track Name"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			tags := inferTagsFromFileName(tt.input)
+			if !reflect.DeepEqual(tags, tt.expected) {
+				t.Fatalf("expected tags to be %v, got %v", tt.expected, tags)
+			}
+		})
+	}
+}
+
 type mockDirEntry struct {
 	name  string
 	isDir bool

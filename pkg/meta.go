@@ -16,10 +16,10 @@ import (
 )
 
 var (
-	// File name may be "1-01. Track Name.flac"
-	discTrackNameRegex = regexp.MustCompile(`^(\d+)-(\d+)\.\s*(.+)\.([\w\d]+)$`)
-	// File name may be "01. Track Name.flac"
-	trackNameRegex = regexp.MustCompile(`^(\d+)\.\s*(.+)\.([\w\d]+)$`)
+	// File name may be "1-01. Track Name.flac" or "1-01. Track Name.flac"
+	discTrackNameRegex = regexp.MustCompile(`^(\d+)-(\d+)(\.| -)\s*(.+)\.([\w\d]+)$`)
+	// File name may be "01. Track Name.flac" or "01 - Track Name.flac"
+	trackNameRegex = regexp.MustCompile(`^(\d+)(\.| -)\s*(.+)\.([\w\d]+)$`)
 )
 
 func inferTagsFromFileName(fileName string) map[string]string {
@@ -28,10 +28,10 @@ func inferTagsFromFileName(fileName string) map[string]string {
 		// there's also DiscTotal
 		res[taglib.DiscNumber] = match[1]
 		res[taglib.TrackNumber] = match[2]
-		res[taglib.Title] = match[3]
+		res[taglib.Title] = match[4]
 	} else if match := trackNameRegex.FindStringSubmatch(fileName); match != nil {
 		res[taglib.TrackNumber] = match[1]
-		res[taglib.Title] = match[2]
+		res[taglib.Title] = match[3]
 	} else {
 		res[taglib.Title] = strings.TrimSuffix(fileName, filepath.Ext(fileName))
 	}
